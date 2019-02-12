@@ -6,7 +6,7 @@ df <- read.table("data/raw/loburc_raw.csv", header = T, sep = ",")
 
 df <- df %>% 
   filter(finished == "finished", discard != "yes") %>%
-  select(-order, - repeat., -last_molt, -sex, -finished, -starve_hours, -food_remaining, -discard, -notes)
+  select(-last_molt, -sex, -finished, -starve_hours, -food_remaining, -discard, -notes)
 
 
 ###############################################################################
@@ -17,6 +17,7 @@ table(df$id, df$num_offered) # So there was obviously an issue and some lobsters
 
 
 table(df$class, df$num_offered, df$treatment) # We have a problem with replication in the jumbo size class which we knew was going to happen.
+
 
 ###############################################################################
 ## Write csv

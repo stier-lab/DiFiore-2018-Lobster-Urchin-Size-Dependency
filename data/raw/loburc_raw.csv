@@ -1,4 +1,4 @@
-﻿id,sex,last_molt,size,class,treatment,density,order,repeat?,finished,num_offered,num_left,num_consumed,num_dead,tank_id,unit_id,trial,food_remaining,starve_hours,discard,notes
+﻿id,sex,last_molt,size,class,treatment,density,order,ifrepeat,finished,num_offered,num_left,num_consumed,num_dead,tank_id,unit_id,trial,food_remaining,starve_hours,discard,notes
 HH16,,,64,small,urc_small,3,2,b,notfinished,,,0,,4,BD,,,,,
 N05,,,78,medium,urc_large,10,6,b,notfinished,,,0,,5,BD,,,,,
 CL,,,110,large,urc_medium,16,1,b,finished,16,8,8,,1,BD,7,,,,
