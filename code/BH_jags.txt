@@ -4,7 +4,7 @@
                  
                  #likelihood
                  
-                 for(i in 1:length(n)){
+                 for(i in 1:n){
                  
                  #prob[i] <- a*P*T/(1+a*h*initial[i])
                  prob[i] <- max(0.0001,min(0.9999,a*P*T/(1+a*h*initial[i])))

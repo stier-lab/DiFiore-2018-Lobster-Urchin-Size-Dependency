@@ -23,4 +23,4 @@ table(df$class, df$num_offered, df$treatment) # We have a problem with replicati
 ## Write csv
 ###############################################################################
 
-write.table(df, "data/loburc_cleaned.csv", sep = ",", quote = F, row.names = F)
+write.table(df, "data/cleaned/loburc_cleaned.csv", sep = ",", quote = F, row.names = F)

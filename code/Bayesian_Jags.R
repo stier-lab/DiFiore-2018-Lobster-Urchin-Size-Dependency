@@ -22,7 +22,7 @@ jagsscript = cat("
                  
                  #likelihood
                  
-                 for(i in 1:length(n)){
+                 for(i in 1:n){
                  
                  #prob[i] <- a*P*T/(1+a*h*initial[i])
                  prob[i] <- max(0.0001,min(0.9999,a*P*T/(1+a*h*initial[i])))
@@ -84,17 +84,19 @@ model = jags(jags.data,parameters.to.save=jags.params,inits=NULL,
 
 fit.jags <- function(pred_size, urc_size, n.chains = 3, n.burnin = 5000, n.thin = 10, n.iter = 10000){
   temp <- df %>% filter(class == pred_size, treatment == urc_size)
-  killed <- temp$num_offered
-  initial <- temp$num_consumed
+  killed <- temp$num_consumed
+  initial <- temp$num_offered
   
   jags(jags.data,parameters.to.save=jags.params,inits=NULL,
                model.file=model.loc, n.chains = n.chains, n.burnin=n.burnin,
                n.thin=n.thin, n.iter=n.iter, DIC=TRUE)
 }
 
-plot.jags <- function(model){
-  temp <- data.frame(Killed = killed, Initial = initial)
-  plot(Killed ~ Initial,data = temp, xlab="initial density",ylab="final density")
+plot.jags <- function(model, pred_size, urc_size){
+  temp <- df %>% filter(class == pred_size, treatment == urc_size)
+  killed <- temp$num_consumed
+  initial <- temp$num_offered
+  plot(killed ~ jitter(initial),data = temp, xlab="initial density",ylab="final density", ylim = c(0,26))
   a = MCMCsummary(model,params='a')[1] # the alpha estimate here is often bounding up against zero
   h = MCMCsummary(model,params='h')[1]
   curve(holling2(x,a,h,P=1,T=1),add=TRUE,col=1,lty=1) #true curve
@@ -104,29 +106,29 @@ plot.jags <- function(model){
 # Write for loop to estimate parameters for each size combination
 
 mod1 <- fit.jags("jumbo", "urc_large")
-plot.jags(mod1)
+plot.jags(mod1, "jumbo", "urc_large")
 mod2 <- fit.jags("large", "urc_large")
-plot.jags(mod2)
+plot.jags(mod2, "large", "urc_large")
 mod3 <- fit.jags("medium", "urc_large")
-plot.jags(mod3)
+plot.jags(mod3, "medium", "urc_large")
 mod4 <- fit.jags("small", "urc_large")
-plot.jags(mod4)
+plot.jags(mod4, "small", "urc_large")
 mod5 <- fit.jags("jumbo", "urc_medium")
-plot.jags(mod5)
+plot.jags(mod5,"jumbo", "urc_medium")
 mod6 <- fit.jags("large", "urc_medium")
-plot.jags(mod6)
+plot.jags(mod6,"large", "urc_medium")
 mod7 <- fit.jags("medium", "urc_medium")
-plot.jags(mod7)
+plot.jags(mod7,"medium", "urc_medium")
 mod8 <- fit.jags("small", "urc_medium")
-plot.jags(mod8)
+plot.jags(mod8,"small", "urc_medium")
 mod9 <- fit.jags("jumbo", "urc_small")
-plot.jags(mod9)
+plot.jags(mod9,"jumbo", "urc_small")
 mod10 <- fit.jags("large", "urc_small")
-plot.jags(mod10)
+plot.jags(mod10,"large", "urc_small")
 mod11 <- fit.jags("medium", "urc_small")
-plot.jags(mod11)
+plot.jags(mod11,"medium", "urc_small")
 mod12 <- fit.jags("small", "urc_small")
-plot.jags(mod12)
+plot.jags(mod12,"small", "urc_small")
 
 
 
