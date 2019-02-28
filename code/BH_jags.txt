@@ -1,0 +1,33 @@
+
+                 
+                 model{
+                 
+                 #likelihood
+                 
+                 for(i in 1:length(n)){
+                 
+                 #prob[i] <- a*P*T/(1+a*h*initial[i])
+                 prob[i] <- max(0.0001,min(0.9999,a*P*T/(1+a*h*initial[i])))
+                 killed[i] ~ dbin(prob[i],initial[i])
+                 
+                 }
+                 
+                 #priors (lots of different priors...)
+                 a ~ dunif(0.001, 1)
+                 h ~ dunif(0.001, 1)
+                 
+                 # a ~ dnorm(0, 0.01)
+                 # h ~ dnorm(0, 0.01)
+                 
+                 # h ~ dlnorm(0,0.01)
+                 # a ~ dlnorm(0,1)
+                 
+                 # a ~ dgamma(0.01, 0.01)
+                 # h ~ dgamma(0.01, 0.01)
+                 
+                 # a ~ dunif(0.2, 0.3)
+                 # h ~ dunif(0,0.2)
+                 
+                 }
+                 
+                 
