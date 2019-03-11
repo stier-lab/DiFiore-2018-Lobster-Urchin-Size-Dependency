@@ -1,10 +1,10 @@
+
 ####################################
-## Libraries
+## Source prior code 
 ####################################
 
-library(R2jags)
-library(rjags)
-library(MCMCvis)
+source("code/setup.R")
+source("code/functions.R")
 
 
 #####################################
@@ -31,8 +31,8 @@ jagsscript = cat("
                  }
                  
                  #priors (lots of different priors...)
-                 a ~ dunif(0.001, 1)
-                 h ~ dunif(0.001, 1)
+                 a ~ dunif(0.001, 2)
+                 h ~ dunif(0.001, 2)
                  
                  # a ~ dnorm(0, 0.01)
                  # h ~ dnorm(0, 0.01)
@@ -82,29 +82,27 @@ model = jags(jags.data,parameters.to.save=jags.params,inits=NULL,
 
 # Write function to fit jags code to subsets
 
-fit.jags <- function(pred_size, urc_size, n.chains = 3, n.burnin = 5000, n.thin = 10, n.iter = 10000){
+fit.jags <- function(pred_size, urc_size, n.chains = 3, n.burnin = 10000, n.thin = 2, n.iter = 20000){
   temp <- df %>% filter(class == pred_size, treatment == urc_size)
   killed <- temp$num_consumed
   initial <- temp$num_offered
+  
+  jags.data = list("initial"= initial,
+                   "killed" = killed,
+                   "P" = 1, 
+                   "T" = 1, 
+                   n = length(initial)) # named list
   
   jags(jags.data,parameters.to.save=jags.params,inits=NULL,
                model.file=model.loc, n.chains = n.chains, n.burnin=n.burnin,
                n.thin=n.thin, n.iter=n.iter, DIC=TRUE)
 }
 
-plot.jags <- function(model, pred_size, urc_size){
-  temp <- df %>% filter(class == pred_size, treatment == urc_size)
-  killed <- temp$num_consumed
-  initial <- temp$num_offered
-  plot(killed ~ jitter(initial),data = temp, xlab="initial density",ylab="final density", ylim = c(0,26))
-  a = MCMCsummary(model,params='a')[1] # the alpha estimate here is often bounding up against zero
-  h = MCMCsummary(model,params='h')[1]
-  curve(holling2(x,a,h,P=1,T=1),add=TRUE,col=1,lty=1) #true curve
-  
-}
 
-# Write for loop to estimate parameters for each size combination
 
+# Fit to each size/treatment combination and plot.
+
+d <- par(mfrow = c(3,4))
 mod1 <- fit.jags("jumbo", "urc_large")
 plot.jags(mod1, "jumbo", "urc_large")
 mod2 <- fit.jags("large", "urc_large")
@@ -129,19 +127,74 @@ mod11 <- fit.jags("medium", "urc_small")
 plot.jags(mod11,"medium", "urc_small")
 mod12 <- fit.jags("small", "urc_small")
 plot.jags(mod12,"small", "urc_small")
+par(d)
+
+# Make plots of parameter fits
+
+mods <- paste("mod", seq(1,12), sep = "") #vector of model names
+
+mod.coefs <- lapply(mods, function(x) {
+  MCMCsummary(get(x), params = c("a", "h"))
+}) #apply the MCMCsummary() function to extract summaries of a and h for each model
+
+names(mod.coefs) <- mods #name the list 
+
+mod.coef <- list_df2df(mod.coefs) #convert the list to a data.frame using the nifty qdap package function
+
+names(mod.coef)[c(1,4,5,6)] <- c("model", "c2.5", "c50", "c97.5") #fix the name
+mod.coef$parameter <- rep(c("a", "h"), times = 12) # add variable for parameter
+
+
+# make correct labels for each model
+treat <- data.frame(model = mods, lob.size = rep(c("jumbo", "large", "medium", "small"), times = 3), urc.size = rep(c("large", "medium", "small"), each = 4))
+treat$combo <- paste(treat$lob.size, treat$urc.size, sep = "_")
+
+mod.coef <- mod.coef %>% left_join(treat)
+
+pred.labels <- rev(rep(c("small", "medium", "large", "jumbo"), each = 3))
+prey.labels <- rev(rep(c("small", "medium", "large"), times = 4))
+
+# plot coefficients and 95% confidence intervals
+ggplot(mod.coef)+
+  geom_linerange(aes(x = as.numeric(as.factor(combo)), ymin = c2.5, ymax = c97.5), lwd = 1) +
+  geom_point(aes(x = as.numeric(as.factor(combo)), y = c50), size = 2, lwd = 1, shape = 21)+
+  scale_x_continuous(breaks = 1:length(pred.labels), labels = pred.labels, 
+                     sec.axis = sec_axis(~., breaks = 1:length(pred.labels), 
+                                         labels = prey.labels)) +
+  coord_flip() +
+  facet_wrap(~parameter, ncol = 1)+
+  theme_bw()+
+  theme(axis.title.y = element_blank(), axis.text = element_text(size = 12), axis.title = element_text(size = 14))
 
 
 
+####################################
+## Build Violin Plot
+####################################
 
+#build df to use in plot
+out <- list()
 
+for(i in mods){
+  temp <- MCMCchains(get(i))[, c("a", "h")]
+  out[[i]] <- temp
+} #extract information for chains of each model
 
+chains <- list_df2df(out)
+names(chains)[1] <- "model"
 
+chains <- chains %>% gather(parameter, estimate, -model) %>%
+  left_join(treat)
 
-
-
-
-
-
+ggplot(chains)+
+  geom_violin(aes(x = combo, y = estimate))+
+  scale_x_discrete(labels = pred.labels)+
+  sec_axis(~ . * 1, breaks = 1:length(prey.labels), labels = prey.labels)+
+  #geom_boxplot(aes(x = combo, y = estimate), width=0.1)+
+  coord_flip() +
+  facet_wrap(~parameter, ncol = 1)+
+  theme_bw()+
+  theme(axis.title.y = element_blank(), axis.text = element_text(size = 12), axis.title = element_text(size = 14))
 
 
 

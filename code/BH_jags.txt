@@ -13,8 +13,8 @@
                  }
                  
                  #priors (lots of different priors...)
-                 a ~ dunif(0.001, 1)
-                 h ~ dunif(0.001, 1)
+                 a ~ dunif(0.001, 2)
+                 h ~ dunif(0.001, 2)
                  
                  # a ~ dnorm(0, 0.01)
                  # h ~ dnorm(0, 0.01)
