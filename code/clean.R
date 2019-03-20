@@ -6,6 +6,7 @@ df <- read.table("data/raw/loburc_raw.csv", header = T, sep = ",")
 
 df <- df %>% 
   filter(finished == "finished", discard != "yes") %>%
+  drop_na(num_offered) %>%
   select(-last_molt, -sex, -finished, -starve_hours, -food_remaining, -discard, -notes)
 
 
