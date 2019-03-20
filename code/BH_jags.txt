@@ -16,9 +16,9 @@
                  # a ~ dunif(0.001, 2)
                  # h ~ dunif(0.001, 2)
                 
-                 #priors based on Dunn et al. 2018 (Ecology) (a = 0.194, 95% CI = 0.107, 0.373, and h = 0.741 [0.346, 1.237))
-                 a ~ dgamma(0.194, 0.1)
-                 h ~ dgamma(0.741, 0.1)
+                 #priors based on Dunn et al. 2018 (Ecology)
+                 a ~ dgamma(shape.a, 1/scale.a)
+                 h ~ dgamma(shape.h, 1/scale.h)
                  
                  # a ~ dnorm(0, 0.01)
                  # h ~ dnorm(0, 0.01)

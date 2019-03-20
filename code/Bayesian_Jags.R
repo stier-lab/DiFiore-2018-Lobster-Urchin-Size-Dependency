@@ -5,6 +5,7 @@
 
 source("code/setup.R")
 source("code/functions.R")
+source("code/Dunn_priorgeneration.R")
 
 
 #####################################
@@ -31,12 +32,12 @@ jagsscript = cat("
                  }
                  
                  #priors (lots of different priors...)
-                 a ~ dunif(0.001, 2)
-                 h ~ dunif(0.001, 2)
+                 # a ~ dunif(0.001, 2)
+                 # h ~ dunif(0.001, 2)
                 
-                 #priors based on Dunn et al. 2018 (Ecology) (a = 0.194, 95% CI = 0.107, 0.373, and h = 0.741 [0.346, 1.237))
-                 # a ~ dgamma(0.194, 0.1)
-                 # h ~ dgamma(0.741, 0.1)
+                 #priors based on Dunn et al. 2018 (Ecology)
+                 a ~ dgamma(shape.a, 1/scale.a)
+                 h ~ dgamma(shape.h, 1/scale.h)
                  
                  # a ~ dnorm(0, 0.01)
                  # h ~ dnorm(0, 0.01)
@@ -77,7 +78,11 @@ jags.data = list("initial"= initial,
                  "killed" = killed,
                  "P" = 1, 
                  "T" = 1, 
-                 n = length(initial)) # named list
+                 n = length(initial), 
+                 scale.a = scale.a, 
+                 shape.a = shape.a, 
+                 scale.h = scale.h, 
+                 shape.h = shape.h) # named list
 
 
 model = jags(jags.data,parameters.to.save=jags.params,inits=NULL,
@@ -96,7 +101,11 @@ fit.jags <- function(pred_size, urc_size, n.chains = 3, n.burnin = 10000, n.thin
                    "killed" = killed,
                    "P" = 1, 
                    "T" = 1, 
-                   n = length(initial)) # named list
+                   n = length(initial), 
+                   scale.a = scale.a, 
+                   shape.a = shape.a, 
+                   scale.h = scale.h, 
+                   shape.h = shape.h) # named list
   
   jags(jags.data,parameters.to.save=jags.params,inits=NULL,
                model.file=model.loc, n.chains = n.chains, n.burnin=n.burnin,

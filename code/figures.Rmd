@@ -9,7 +9,10 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r setup}
 
-source(c("code/setup.R", "code/functions.R", "code/clean.R", "code/Bayesian_Jags.R"))
+source("code/setup.R")
+source("code/functions.R")
+source("code/clean.R") 
+source("code/Bayesian_Jags.R")
 
 ```
 
@@ -93,6 +96,8 @@ dev.off()
 # Make coefficient style plots of parameter fits
 ##############################################
 
+#setup
+
 mods <- paste("mod", seq(1,12), sep = "") #vector of model names
 
 mod.coefs <- lapply(mods, function(x) {
@@ -129,8 +134,40 @@ coef <- ggplot(mod.coef)+
   theme_bw()+
   theme(axis.title.y = element_blank(), axis.text = element_text(size = 12), axis.title = element_text(size = 14))
 
-pdf(paste("figures/fig3_", Sys.Date(), ".pdf", sep = ""), width = 6.5 , height = 10)
-coef
+# pdf(paste("figures/fig3_", Sys.Date(), ".pdf", sep = ""), width = 6.5 , height = 10)
+# coef
+# dev.off()
+
+
+#Two panel with facet wrapping
+
+pa <- mod.coef %>% filter(parameter == "a") %>%
+  mutate(urc.size, urc.size = paste(urc.size, "prey", sep = " ")) %>%
+ggplot()+
+  geom_linerange(aes(x = lob.size, ymin = c2.5, ymax = c97.5), lwd = 1) +
+  geom_point(aes(x = lob.size, y = c50), size = 2, lwd = 1, shape = 21)+
+  scale_y_continuous(breaks = seq(0, 1.2, by = 0.4), labels = seq(0, 1.2, by = 0.4) ) +
+  coord_flip() +
+  facet_wrap(~urc.size)+
+  labs(y = "", title = "Attack rate")+
+  #coord_capped_cart(bottom='both', left='both')+
+  theme_bw()+
+  theme(axis.title.y = element_blank(), axis.text = element_text(size = 12), axis.title = element_text(size = 14))
+
+ph <- mod.coef %>% filter(parameter == "h") %>%
+  mutate(urc.size, urc.size = paste(urc.size, "prey", sep = " ")) %>%
+ggplot()+
+  geom_linerange(aes(x = lob.size, ymin = c2.5, ymax = c97.5), lwd = 1) +
+  geom_point(aes(x = lob.size, y = c50), size = 2, lwd = 1, shape = 21)+
+  coord_flip() +
+  facet_wrap(~urc.size)+
+  labs(y = "", title = "Handling time")+
+  #coord_capped_cart(bottom='both', left='both')+
+  theme_bw()+
+  theme(axis.title.y = element_blank(), axis.text = element_text(size = 12), axis.title = element_text(size = 14))
+
+pdf(paste("figures/fig3_v2_", Sys.Date(), ".pdf", sep = ""), width = 7 , height = 5)
+cowplot::plot_grid(pa,ph, align = "v", ncol = 1)
 dev.off()
 
 
@@ -155,7 +192,7 @@ chains <- chains %>% gather(parameter, estimate, -model) %>%
 ggplot(chains)+
   geom_violin(aes(x = combo, y = estimate))+
   scale_x_discrete(labels = pred.labels)+
-  sec_axis(~ . * 1, breaks = 1:length(prey.labels), labels = prey.labels)+
+  #sec_axis(~ . * 1, breaks = 1:length(prey.labels), labels = prey.labels)+
   #geom_boxplot(aes(x = combo, y = estimate), width=0.1)+
   coord_flip() +
   facet_wrap(~parameter, ncol = 1)+
