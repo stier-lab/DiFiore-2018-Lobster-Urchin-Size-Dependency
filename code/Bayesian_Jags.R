@@ -130,9 +130,70 @@ mod11 <- fit.jags("medium", "urc_small")
 mod12 <- fit.jags("small", "urc_small")
 
 
+#################################################################
+## Build heirarchical bayesian model
+#################################################################
+
+# The goal is to build a mixed effects bayesian model that estimates a population level attack rate and handling time, and individual attack rates and handling times for each lobster. 
+
+jagsscript = cat("
+                 
+                 model{
+                 
+                 #likelihood
+                 
+                 for(i in 1:n){
+                 
+                 #prob[i] <- a*P*T/(1+a*h*initial[i])
+                 prob[i] <- max(0.0001,min(0.9999,a*P*T/(1+a*h*initial[i])))
+                 killed[i] ~ dbin(prob[i],initial[i])
+                 
+                 }
+                 
+                 #hyperpriors
 
 
+                 #priors based on Dunn et al. 2018 (Ecology)
+                 a ~ dgamma(shape.a, 1/scale.a)
+                 h ~ dgamma(shape.h, 1/scale.h)
+                 
+                 
+                 }
+                 
+                 ",file="code/heirarchical_jags.txt")
 
+model.loc="code/heirarchical_jags.txt"
+
+jagsscript = cat("
+model {  
+                 U ~ dnorm(0, 0.01); #mean population growth rate
+                 tauQ~dgamma(0.001,0.001); #error associated with growth rate
+                 Q <- 1/tauQ;
+                 
+                 # Estimate the initial population abundance
+                 X[1] ~ dnorm(3,0.01); # vague normal prior 
+                 
+                 # Autoregressive process for remaining years
+                 for(i in 2:nYears) {
+                 predX[i] <- X[i-1] + U; # our population growth model in log space
+                 X[i] ~ dnorm(predX[i], tauQ); # adding the error to the growth model for each time step
+                 }
+                 
+                 # Observation model
+                 # The Rs are different in each survey (i.e. the error is different)
+                 for(i in 1:nSurveys) {
+                 tauR[i]~dgamma(0.001,0.001); #different error terms (R's) for each survey
+                 R[i] <- 1/tauR[i];
+                 }
+                 for(i in 1:nYears) {
+                 for(j in 1:nSurveys) {
+                 Y[i,j] ~ dnorm(X[i],tauR[j]); # relate the latent state variable to the known observations allowing their errors to vary independently
+                 }
+                 }
+                 }  
+                 
+                 ", 
+                 file = "marss_lingcod_true.txt")
 
 
 
