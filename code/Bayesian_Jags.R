@@ -12,7 +12,7 @@ source(here("code","Dunn_priorgeneration.R"))
 ## Get data
 #####################################
 
-df <- read.table("data/cleaned/loburc_cleaned.csv", header = T, sep = ",")
+df <- read.table(here("data/cleaned","loburc_cleaned.csv"), header = T, sep = ",")
 
 
 #Write Jags model
@@ -53,9 +53,9 @@ jagsscript = cat("
                  
                  }
                  
-                 ",file="code/BH_jags.txt")
+                 ",file="BH_jags.txt")
 
-model.loc="code/BH_jags.txt" # name of the txt file
+model.loc=here("code","BH_jags.txt") # name of the txt file
 jags.params=c("a", "h")
 
 
@@ -160,9 +160,9 @@ jagsscript = cat("
                  
                  }
                  
-                 ",file="code/heirarchical_jags.txt")
+                 ",file="heirarchical_jags.txt")
 
-model.loc="code/heirarchical_jags.txt"
+model.loc=here("code","heirarchical_jags.txt")
 
 jagsscript = cat("
 model {  

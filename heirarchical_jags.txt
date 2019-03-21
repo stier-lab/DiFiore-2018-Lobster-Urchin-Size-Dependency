@@ -1,0 +1,25 @@
+
+                 
+                 model{
+                 
+                 #likelihood
+                 
+                 for(i in 1:n){
+                 
+                 #prob[i] <- a*P*T/(1+a*h*initial[i])
+                 prob[i] <- max(0.0001,min(0.9999,a*P*T/(1+a*h*initial[i])))
+                 killed[i] ~ dbin(prob[i],initial[i])
+                 
+                 }
+                 
+                 #hyperpriors
+
+
+                 #priors based on Dunn et al. 2018 (Ecology)
+                 a ~ dgamma(shape.a, 1/scale.a)
+                 h ~ dgamma(shape.h, 1/scale.h)
+                 
+                 
+                 }
+                 
+                 

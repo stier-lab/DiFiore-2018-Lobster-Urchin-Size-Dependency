@@ -9,8 +9,6 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r setup}
 
-library(here)
-library(ggpubr)
 
 source(here("code","setup.R"))
 source(here("code","functions.R"))
@@ -49,7 +47,7 @@ p2 <- df %>%
 fig1 <- cowplot::plot_grid(p1, p2 + labs(y = NULL))
 
 
-png(paste("figures/fig1_", Sys.Date(), ".png", sep = ""), width = 623*1.2, height = 369*1.2)
+png(here("figures",paste("fig1_", Sys.Date(), ".png", sep = "")), width = 623*1.2, height = 369*1.2)
 fig1
 dev.off()
 ```

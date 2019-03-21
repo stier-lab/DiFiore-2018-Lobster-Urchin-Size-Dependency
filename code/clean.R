@@ -2,13 +2,10 @@
 ## Clean raw csv file to prepare for fitting functional responses
 ##############################################################################
 
-#temp for ACS cause he can't get his shit to work 
-# setwd("~/github/Lobster_Urchin")
-library(tidyverse)
-source("code/setup.R")
-source("code/functions.R")
+source(here("code","setup.R"))
+source(here("code","functions.R"))
 
-df <- read.table("data/raw/loburc_raw.csv", header = T, sep = ",")
+df <- read.table(here("data/raw","loburc_raw.csv"), header = T, sep = ",")
 
 df <- df %>% 
   filter(finished == "finished", discard != "yes") %>%
