@@ -2,6 +2,9 @@
 ## Clean raw csv file to prepare for fitting functional responses
 ##############################################################################
 
+source("code/setup.R")
+source("code/functions.R")
+
 df <- read.table("data/raw/loburc_raw.csv", header = T, sep = ",")
 
 df <- df %>% 

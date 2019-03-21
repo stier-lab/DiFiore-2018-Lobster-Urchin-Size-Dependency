@@ -32,7 +32,7 @@ x2 <- seq(0,2.5, by = 0.01)
 # plot to inspect distributions
 
 plot(dgamma(x = x, shape = shape.a, scale = scale.a ) ~ x)
-points(dgamma(x = x, shape = shape2.a, scale = scale2.a ) ~ x, col = 2) # changing the variance also shift the mean of the distribution... so likely not a good strategy
+points(dgamma(x = x, shape = shape5.a, scale = scale5.a ) ~ x, col = 2) # changing the variance also shift the mean of the distribution... so likely not a good strategy
 plot(dgamma(x = x2, shape = shape.h, scale = scale.h ) ~ x2)
 
 
@@ -57,29 +57,29 @@ plot(dgamma(x = x2, shape = shape.h, scale = scale.h ) ~ x2)
 ## Misc from http://doingbayesiandataanalysis.blogspot.com/2012/08/gamma-likelihood-parameterized-by-mode.html
 ##############################################################################
 
-
-#To parameterize the gamma prior by the mean
-model {
-  for ( i in 1:N ) {
-    y[i] ~ dgamma( sh , ra )
-  }
-  # parameterized by mean (m) and standard deviation (sd)
-  sh <- pow(m,2) / pow(sd,2)
-  ra <-     m    / pow(sd,2)
-  m ~ dunif(0,100)
-  sd ~ dunif(0,100)
-}
-
-#To parameterize the gamma prior by the mode (supposedly better because of skewedness)
-model {
-  for ( i in 1:N ) {
-    y[i] ~ dgamma( sh , ra )
-  }
-  # parameterized by mode (m) and standard deviation (sd):
-  sh <- 1 + m * ra
-  ra <- ( m + sqrt( m^2 + 4*sd^2 ) ) / ( 2 * sd^2 )
-  m ~ dunif(0,100)
-  sd ~ dunif(0,100)
-}
+# 
+# #To parameterize the gamma prior by the mean
+# model {
+#   for ( i in 1:N ) {
+#     y[i] ~ dgamma( sh , ra )
+#   }
+#   # parameterized by mean (m) and standard deviation (sd)
+#   sh <- pow(m,2) / pow(sd,2)
+#   ra <-     m    / pow(sd,2)
+#   m ~ dunif(0,100)
+#   sd ~ dunif(0,100)
+# }
+# 
+# #To parameterize the gamma prior by the mode (supposedly better because of skewedness)
+# model {
+#   for ( i in 1:N ) {
+#     y[i] ~ dgamma( sh , ra )
+#   }
+#   # parameterized by mode (m) and standard deviation (sd):
+#   sh <- 1 + m * ra
+#   ra <- ( m + sqrt( m^2 + 4*sd^2 ) ) / ( 2 * sd^2 )
+#   m ~ dunif(0,100)
+#   sd ~ dunif(0,100)
+# }
 
 
