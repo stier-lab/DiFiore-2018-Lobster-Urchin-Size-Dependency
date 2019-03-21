@@ -35,6 +35,7 @@ plot(dgamma(x = x, shape = shape.a, scale = scale.a ) ~ x)
 
 ##*ASC commented this out cause it was breaking the pipeline cause scale2.a doesn't exist
 #points(dgamma(x = x, shape = shape2.a, scale = scale2.a ) ~ x, col = 2) # changing the variance also shift the mean of the distribution... so likely not a good strategy
+points(dgamma(x = x, shape = shape5.a, scale = scale5.a ) ~ x, col = 2) # changing the variance also shift the mean of the distribution... so likely not a good strategy
 plot(dgamma(x = x2, shape = shape.h, scale = scale.h ) ~ x2)
 
 
@@ -62,6 +63,7 @@ plot(dgamma(x = x2, shape = shape.h, scale = scale.h ) ~ x2)
 
 #AS commented this chunk below out because it was throwing a bug 
 
+# 
 # #To parameterize the gamma prior by the mean
 # model {
 #   for ( i in 1:N ) {

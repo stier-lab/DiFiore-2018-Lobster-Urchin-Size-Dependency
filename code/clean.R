@@ -3,8 +3,10 @@
 ##############################################################################
 
 #temp for ACS cause he can't get his shit to work 
-setwd("~/github/Lobster_Urchin")
+# setwd("~/github/Lobster_Urchin")
 library(tidyverse)
+source("code/setup.R")
+source("code/functions.R")
 
 df <- read.table("data/raw/loburc_raw.csv", header = T, sep = ",")
 
