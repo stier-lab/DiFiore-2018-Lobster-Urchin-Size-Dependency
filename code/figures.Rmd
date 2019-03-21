@@ -9,10 +9,13 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r setup}
 
-source("code/setup.R")
-source("code/functions.R")
-source("code/clean.R") 
-source("code/Bayesian_Jags.R")
+library(here)
+library(ggpubr)
+
+source(here("code","setup.R"))
+source(here("code","functions.R"))
+source(here("code","clean.R"))
+source(here("code","Bayesian_Jags.R"))
 
 ```
 
@@ -74,10 +77,16 @@ plot.jags <- function(model, pred_size, urc_size){
 
 lob.size <- rev(c("small", "medium", "large", "jumbo"))
 urc.size <- rev(c("urc_small", "urc_medium", "urc_large"))
+
+#***
+#####AS is confused about what "mods" is here - i see a bunch of models in the bayesian fits but not mods? oh okay
+#####I see it's below change the order of this code chunk and below to make sure mods is already defined 
+#***
+  
 treat2 <- data.frame(model = mods, lob.size = rep(lob.size, times = 3), urc.size = rep(urc.size, each = 4))
 treat2 <- treat2 %>% mutate_all(as.character)
 
-pdf(paste("figures/fig2_", Sys.Date(), ".pdf", sep = ""), width = 11, height = 7)
+pdf(here("figures",paste("fig2_", Sys.Date(), ".pdf", sep = "")), width = 11, height = 7)
 #c(bottom, left, top, right)
 d <- par(mfrow = c(3,4), mar = c(2,2,2,2), oma = c(3, 3, 0.5, 0.5))
 for(i in 1:nrow(treat2)){

@@ -2,6 +2,10 @@
 ## Clean raw csv file to prepare for fitting functional responses
 ##############################################################################
 
+#temp for ACS cause he can't get his shit to work 
+setwd("~/github/Lobster_Urchin")
+library(tidyverse)
+
 df <- read.table("data/raw/loburc_raw.csv", header = T, sep = ",")
 
 df <- df %>% 
@@ -24,4 +28,4 @@ table(df$class, df$num_offered, df$treatment) # We have a problem with replicati
 ## Write csv
 ###############################################################################
 
-write.table(df, "data/cleaned/loburc_cleaned.csv", sep = ",", quote = F, row.names = F)
+write.table(df, here("data/cleaned","loburc_cleaned.csv"), sep = ",", quote = F, row.names = F)

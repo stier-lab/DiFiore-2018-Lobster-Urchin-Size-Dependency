@@ -3,9 +3,9 @@
 ## Source prior code 
 ####################################
 
-source("code/setup.R")
-source("code/functions.R")
-source("code/Dunn_priorgeneration.R")
+source(here("code","setup.R"))
+source(here("code","functions.R"))
+source(here("code","Dunn_priorgeneration.R"))
 
 
 #####################################
