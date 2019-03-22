@@ -85,7 +85,7 @@ jags.data = list("initial"= initial,
                  shape.h = shape.h) # named list
 
 
-model = jags(jags.data,parameters.to.save=jags.params,inits=NULL,
+model.overall = jags(jags.data,parameters.to.save=jags.params,inits=NULL,
              model.file=model.loc, n.chains = n.chains, n.burnin=n.burnin,
              n.thin=n.thin, n.iter=n.iter, DIC=TRUE)
 
@@ -136,6 +136,13 @@ mod12 <- fit.jags("small", "urc_small")
 
 # The goal is to build a mixed effects bayesian model that estimates a population level attack rate and handling time, and individual attack rates and handling times for each lobster. 
 
+#Build list with all necessary data contained as vectors in named slots in the list
+
+id <- as.numeric(df$id)
+
+
+dat <- list(initial = initial, killed = killed, id = id, n = length(initial), num.ind = length(unique(id)))
+
 jagsscript = cat("
                  
                  model{
@@ -144,63 +151,63 @@ jagsscript = cat("
                  
                  for(i in 1:n){
                  
-                 #prob[i] <- a*P*T/(1+a*h*initial[i])
-                 prob[i] <- max(0.0001,min(0.9999,a*P*T/(1+a*h*initial[i])))
+                 prob[i] <- max(0.0001,min(0.9999,ar[id[i]]*P*T/(1+ar[id[i]]*ht[id[i]]*initial[i])))
                  killed[i] ~ dbin(prob[i],initial[i])
                  
+                  
                  }
                  
-                 #hyperpriors
+                 #Individual attack rates and handling times vary according to a normal distribution. 
+                
+                  for(i in 1:num.ind){
+                      ar[i] ~ dlnorm(a, tau1)
+                      ht[i] ~ dlnorm(h, tau2)
+                 }
+                 
+                
+                
+                 #Priors on the individual-level variation 
+                 tau1 <- 1/ (sd * sd)
+                 sd ~ dunif(0, 50)
+                 
+                 tau2 <- 1/ (sd * sd)
+                 sd2 ~ dunif(0, 50)
 
 
-                 #priors based on Dunn et al. 2018 (Ecology)
+                 # hyperpriors based on Dunn et al. 2018 (Ecology)
                  a ~ dgamma(shape.a, 1/scale.a)
                  h ~ dgamma(shape.h, 1/scale.h)
                  
                  
                  }
                  
-                 ",file="heirarchical_jags.txt")
+                 ",file=here("code", "heirarchical_jags.txt"))
 
 model.loc=here("code","heirarchical_jags.txt")
+jags.params=c("a", "h", "ar", "ht")
 
-jagsscript = cat("
-model {  
-                 U ~ dnorm(0, 0.01); #mean population growth rate
-                 tauQ~dgamma(0.001,0.001); #error associated with growth rate
-                 Q <- 1/tauQ;
-                 
-                 # Estimate the initial population abundance
-                 X[1] ~ dnorm(3,0.01); # vague normal prior 
-                 
-                 # Autoregressive process for remaining years
-                 for(i in 2:nYears) {
-                 predX[i] <- X[i-1] + U; # our population growth model in log space
-                 X[i] ~ dnorm(predX[i], tauQ); # adding the error to the growth model for each time step
-                 }
-                 
-                 # Observation model
-                 # The Rs are different in each survey (i.e. the error is different)
-                 for(i in 1:nSurveys) {
-                 tauR[i]~dgamma(0.001,0.001); #different error terms (R's) for each survey
-                 R[i] <- 1/tauR[i];
-                 }
-                 for(i in 1:nYears) {
-                 for(j in 1:nSurveys) {
-                 Y[i,j] ~ dnorm(X[i],tauR[j]); # relate the latent state variable to the known observations allowing their errors to vary independently
-                 }
-                 }
-                 }  
-                 
-                 ", 
-                 file = "marss_lingcod_true.txt")
+jags.data = list("initial"= dat$initial,
+                 "killed" = dat$killed,
+                 "P" = 1, 
+                 "T" = 1,
+                 "id" = dat$id,
+                 "num.ind" = dat$num.ind,
+                 "n" = dat$n, 
+                 "scale.a" = scale.a, 
+                 "shape.a" = shape.a, 
+                 "scale.h" = scale.h, 
+                 "shape.h" = shape.h) # named list
+
+n.chains = 3
+n.burnin = 10000
+n.thin = 2
+n.iter = 25000
+model = jags(jags.data,parameters.to.save=jags.params,inits=NULL,
+             model.file=model.loc, n.chains = n.chains, n.burnin=n.burnin,
+             n.thin=n.thin, n.iter=n.iter, DIC=TRUE)
 
 
-
-
-
-
-
+#traceplot(model)
 
 
 

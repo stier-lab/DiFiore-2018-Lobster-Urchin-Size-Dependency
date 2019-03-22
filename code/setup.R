@@ -8,7 +8,6 @@ library(dplyr)
 library(R2jags)
 library(rjags)
 library(MCMCvis)
-# library(qdap) #acs can get this to download on the lab imac
 library(ggpubr)
 library(cowplot)
 library(here)

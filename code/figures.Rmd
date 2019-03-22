@@ -9,7 +9,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r setup}
 
-
+library("here")
 source(here("code","setup.R"))
 source(here("code","functions.R"))
 source(here("code","clean.R"))
@@ -57,6 +57,8 @@ dev.off()
 ##########################################################
 ## Plot Jags output fit to each size combination
 ##########################################################
+
+mods <- paste("mod", seq(1,12), sep = "") #vector of model names
 
 # Write function to plot fits
 plot.jags <- function(model, pred_size, urc_size){
@@ -107,15 +109,20 @@ dev.off()
 
 mods <- paste("mod", seq(1,12), sep = "") #vector of model names
 
-mod.coefs <- lapply(mods, function(x) {
+mod.coef <- lapply(mods, function(x) {
   MCMCsummary(get(x), params = c("a", "h"))
 }) #apply the MCMCsummary() function to extract summaries of a and h for each model
 
-names(mod.coefs) <- mods #name the list 
+names(mod.coef) <- mods #name the list 
 
-mod.coef <- list_df2df(mod.coefs) #convert the list to a data.frame using the nifty qdap package function
+mod.coef <- do.call(rbind, mod.coef)
+parameter <- rownames(mod.coef)
+mod.coef <- as.data.frame(mod.coef)
+row.names(mod.coef) <- NULL
+mod.coef$parameter <- parameter
+mod.coef$model <- rep(mods, each = 2)
 
-names(mod.coef)[c(1,4,5,6)] <- c("model", "c2.5", "c50", "c97.5") #fix the name
+names(mod.coef)[c(3,4,5)] <- c("c2.5", "c50", "c97.5") #fix the name
 mod.coef$parameter <- rep(c("a", "h"), times = 12) # add variable for parameter
 
 
@@ -173,9 +180,9 @@ ggplot()+
   theme_bw()+
   theme(axis.title.y = element_blank(), axis.text = element_text(size = 12), axis.title = element_text(size = 14))
 
-pdf(paste("figures/fig3_v2_", Sys.Date(), ".pdf", sep = ""), width = 7 , height = 5)
-cowplot::plot_grid(pa,ph, align = "v", ncol = 1)
-dev.off()
+# pdf(paste("figures/fig3_v2_", Sys.Date(), ".pdf", sep = ""), width = 7 , height = 5)
+# cowplot::plot_grid(pa,ph, align = "v", ncol = 1)
+# dev.off()
 
 
 ####################################
@@ -187,16 +194,17 @@ out <- list()
 
 for(i in mods){
   temp <- MCMCchains(get(i))[, c("a", "h")]
-  out[[i]] <- temp
+  out[[i]] <- cbind(temp, names(out[i]))
 } #extract information for chains of each model
 
-chains <- list_df2df(out)
-names(chains)[1] <- "model"
 
-chains <- chains %>% gather(parameter, estimate, -model) %>%
-  left_join(treat)
+chains <- as.data.frame(do.call(rbind, out))
+names(chains) <- c("a", "h", "model")
 
-ggplot(chains)+
+chains %>% gather(parameter, estimate, -model) %>%
+  left_join(treat) %>%
+  
+  ggplot()+
   geom_violin(aes(x = combo, y = estimate))+
   scale_x_discrete(labels = pred.labels)+
   #sec_axis(~ . * 1, breaks = 1:length(prey.labels), labels = prey.labels)+
