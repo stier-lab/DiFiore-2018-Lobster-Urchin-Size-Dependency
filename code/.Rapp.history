@@ -1,10 +1,5 @@
 i
 ## Simulate data for prey mortality risk assuming a predator with a Holling type II Functional response
-## Simulate data for prey mortality risk assuming a predator with a Holling type II Functional response
-## Simulate data for prey mortality risk assuming a predator with a Holling type II Functional response
-## Simulate data for prey mortality risk assuming a predator with a Holling type II Functional response
-## Load needed libraries
-## Load needed libraries
 ## Load needed libraries
 library(bbmle)
 library(coda)
