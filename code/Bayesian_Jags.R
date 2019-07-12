@@ -242,7 +242,7 @@ jags.data = list("initial"= initial,
 n.chains = 3
 n.burnin = 10000
 n.thin = 2
-n.iter = 100000
+n.iter = 10^6
 model = jags(jags.data,parameters.to.save=jags.params,inits=NULL,
              model.file=model.loc, n.chains = n.chains, n.burnin=n.burnin,
              n.thin=n.thin, n.iter=n.iter, DIC=TRUE)
@@ -277,11 +277,28 @@ model = jags(jags.data,parameters.to.save=jags.params,inits=NULL,
 
 
 
+a = MCMCsummary(model,params='a') # the alpha estimate here is often bounding up against zero
+h = MCMCsummary(model,params='h')
 
+plot(killed ~ jitter(initial),data = df, xlab="Number of prey",ylab="Number consumed", ylim = c(0,26))
+curve(holling2(x,a[1],h[1],P=1,T=1),add=TRUE,col=1,lty=1) #true curve
 
+temp <- data.frame(distinct(df, id, size, as.numeric(id))) 
+names(temp) <- c("id.car", "size", "id" )
+df.a <- temp %>% left_join(data.frame(id = seq(1,46), a)) %>% mutate(parameter = "a")
+df.h <- temp %>% left_join(data.frame(id = seq(1,46), h)) %>% mutate(parameter = "h")
 
+model.output <- rbind(df.a, df.h)
 
+model.output %>% filter(Rhat < 1.3) %>% 
+ggplot(aes(x = size, y = mean))+
+  geom_point()+
+  facet_wrap(~parameter)
 
+for(i in 1:46){
+plot(num_offered ~ jitter(num_consumed),data = df[as.numeric(df$id) == i, ], xlab="Number of prey",ylab="Number consumed", ylim = c(0,26))
+curve(holling2(x,a[i],h[i],P=1,T=1),add=TRUE,col=1,lty=1) #true curve
+}
 
 
 

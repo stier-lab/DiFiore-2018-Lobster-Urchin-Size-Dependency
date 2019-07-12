@@ -216,3 +216,75 @@ chains %>% gather(parameter, estimate, -model) %>%
 
 ```
 
+
+```{r}
+#########################################################
+## 4 Panel fits to data
+#########################################################
+df$treatment_numeric <- ifelse(df$treatment == "urc_small", 1, 
+                               ifelse(df$treatment == "urc_medium", 2, 3))
+
+pdf(here("figures", "fig_fits.pdf"), width = 13.3*0.8, height = 7.5*0.8)
+d <- par(mfrow = c(2,2), mar = c(3,5,2,1), mgp = c(2,1,0))
+plot(num_consumed ~ jitter(num_offered), data = df[df$class == "small", ], xlab = "", ylab = "Number of prey\nconsumed", main = "Small Lobsters", cex = df$treatment_numeric[df$class == "small"], ylim = c(0,22))
+curve(holling2(x,mod.coef$mean[mod.coef$parameter == "a" & mod.coef$combo == "small_large"],mod.coef$mean[mod.coef$parameter == "h" & mod.coef$combo == "small_large"],P=1,T=1),add=TRUE, col = "#0570b0", lwd = 3.5)
+curve(holling2(x,mod.coef$mean[mod.coef$parameter == "a" & mod.coef$combo == "small_medium"],mod.coef$mean[mod.coef$parameter == "h" & mod.coef$combo == "small_medium"],P=1,T=1),add=TRUE, col = "#74a9cf", lwd = 2)
+curve(holling2(x,mod.coef$mean[mod.coef$parameter == "a" & mod.coef$combo == "small_small"],mod.coef$mean[mod.coef$parameter == "h" & mod.coef$combo == "small_small"],P=1,T=1),add=TRUE,col = "#bdc9e1", lwd = 1.2)
+LEGEND(x = 5, y = 22, legend = c("Small urchins", "Medium urchins", "Large urchins"), pch = c(1,1,1), pt.cex = c(1,2,3), pt.lwd = c(1,1,1), pt.col = c("black", "black", "black"), lty = c(1,1,1), lwd = c(1.2,2,3.5), col = c("#bdc9e1", "#74a9cf", "#0570b0"), bty = "n", xjust = 0, yjust = 1, y.intersp = 1, x.intersp = 0.75, seg.len = 2)
+
+plot(num_consumed ~ jitter(num_offered), data = df[df$class == "medium",], xlab = "", ylab = "", main = "Medium Lobsters", cex = df$treatment_numeric[df$class == "medium"], ylim = c(0,22))
+curve(holling2(x,mod.coef$mean[mod.coef$parameter == "a" & mod.coef$combo == "medium_large"],mod.coef$mean[mod.coef$parameter == "h" & mod.coef$combo == "medium_large"],P=1,T=1),add=TRUE, col = "#0570b0", lwd = 3.5)
+curve(holling2(x,mod.coef$mean[mod.coef$parameter == "a" & mod.coef$combo == "medium_medium"],mod.coef$mean[mod.coef$parameter == "h" & mod.coef$combo == "medium_medium"],P=1,T=1),add=TRUE, col = "#74a9cf", lwd = 2)
+curve(holling2(x,mod.coef$mean[mod.coef$parameter == "a" & mod.coef$combo == "medium_small"],mod.coef$mean[mod.coef$parameter == "h" & mod.coef$combo == "medium_small"],P=1,T=1),add=TRUE,col = "#bdc9e1", lwd = 1.2)
+
+
+f <- par(mar = c(4, 5, 2,1))
+plot(num_consumed ~ jitter(num_offered), data = df[df$class == "large",], ylab = "Number of prey\nconsumed", xlab = "Prey density", main = "Large Lobsters", cex = df$treatment_numeric[df$class == "large"], ylim = c(0,22))
+curve(holling2(x,mod.coef$mean[mod.coef$parameter == "a" & mod.coef$combo == "large_large"],mod.coef$mean[mod.coef$parameter == "h" & mod.coef$combo == "large_large"],P=1,T=1),add=TRUE, col = "#0570b0", lwd = 3.5)
+curve(holling2(x,mod.coef$mean[mod.coef$parameter == "a" & mod.coef$combo == "large_medium"],mod.coef$mean[mod.coef$parameter == "h" & mod.coef$combo == "large_medium"],P=1,T=1),add=TRUE, col = "#74a9cf", lwd = 2)
+curve(holling2(x,mod.coef$mean[mod.coef$parameter == "a" & mod.coef$combo == "large_small"],mod.coef$mean[mod.coef$parameter == "h" & mod.coef$combo == "large_small"],P=1,T=1),add=TRUE,col = "#bdc9e1", lwd = 1.2)
+
+plot(num_consumed ~ jitter(num_offered), data = df[df$class == "jumbo",], xlab = "Prey density", ylab = "", main = "Jumbo Lobsters", cex = df$treatment_numeric[df$class == "jumbo"], ylim = c(0,22))
+curve(holling2(x,mod.coef$mean[mod.coef$parameter == "a" & mod.coef$combo == "jumbo_large"],mod.coef$mean[mod.coef$parameter == "h" & mod.coef$combo == "jumbo_large"],P=1,T=1),add=TRUE, col = "#0570b0", lwd = 3.5)
+curve(holling2(x,mod.coef$mean[mod.coef$parameter == "a" & mod.coef$combo == "jumbo_medium"],mod.coef$mean[mod.coef$parameter == "h" & mod.coef$combo == "jumbo_medium"],P=1,T=1),add=TRUE, col = "#74a9cf", lwd = 2)
+curve(holling2(x,mod.coef$mean[mod.coef$parameter == "a" & mod.coef$combo == "jumbo_small"],mod.coef$mean[mod.coef$parameter == "h" & mod.coef$combo == "jumbo_small"],P=1,T=1),add=TRUE,col = "#bdc9e1", lwd = 1.2)
+par(f)
+par(d)
+dev.off()
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
