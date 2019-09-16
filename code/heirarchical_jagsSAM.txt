@@ -40,7 +40,7 @@ model{
         h[i] <- exp(logh[i])/(1+exp(logh[i]))
       }
   
-  #likelihood
+  # functional response likelihood
   
       for(i in 1:n){
         
@@ -50,6 +50,7 @@ model{
         
       }
 
+                 
   # Variances for all levels
       sigma_int.a ~dunif(0,10)
       tau_int.a <- 1/(sigma_int.a*sigma_int.a)

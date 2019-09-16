@@ -138,10 +138,15 @@ mod$a <- a[,1]
 mod$h <- h[,1]
 mod$max.intake <- 1/mod$h
 
+lm.a <- lm(log(a)~log(temp), mod)
+summary(lm.a)
+lm.h <- lm(log(h) ~ log(temp), mod)
+summary(lm.h)
 
-p1 <- ggplot(mod, aes(x = temp, y = log(a)))+
+
+p1 <- ggplot(mod, aes(x = log(temp), y = log(a)))+
   geom_point()
-p2 <- ggplot(mod, aes(x = temp, y = max.intake))+
+p2 <- ggplot(mod, aes(x = log(temp), y = log(max.intake)))+
   geom_point()
 
 cowplot::plot_grid(p1, p2, ncol = 2)
