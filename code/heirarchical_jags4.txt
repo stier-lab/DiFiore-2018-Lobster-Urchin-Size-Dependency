@@ -1,0 +1,46 @@
+model{
+                 
+                 # hyperpriors
+                 #a
+                 logit_mu.a ~ dnorm(0, 1)
+                 mu.a <- exp(logit_mu.a)/(1+exp(logit_mu.a))
+                 
+                 #h
+                 logit_mu.h ~ dnorm(0, 1)
+                 mu.h <- exp(logit_mu.h)/(1+exp(logit_mu.h))
+              
+                 # Variance parameters
+                 sigma_int.a ~dunif(0,10) #SD hyperparatmer for random a
+                 tau_int.a <- 1/(sigma_int.a*sigma_int.a)
+                 sigma_int.h ~dunif(0,10) #SD hyperparatmer for random h
+                 tau_int.h <- 1/(sigma_int.h*sigma_int.h)
+
+
+                 # priors
+                 #Individual attack rates and handling times vary according to a log normal distribution. 
+
+                 for(i in 1:num.treatments){
+                 loga.r[i] ~ dnorm(logit_mu.a, tau_int.a)
+                 logh.r[i] ~ dnorm(logit_mu.h, tau_int.h)
+                 a.r[i] <- exp(loga.r[i])/(1+exp(loga.r[i]))
+                 h.r[i] <- exp(logh.r[i])/(1+exp(logh.r[i]))
+                 }
+                 
+                 for(i in 1:num.ind){
+                 loga[i] ~ dnorm(a.r[treatment[i]], tau_int.a)
+                 logh[i] ~ dnorm(h.r[treatment[i]], tau_int.h)
+                 a[i] <- exp(loga[i])/(1+exp(loga[i]))
+                 h[i] <- exp(logh[i])/(1+exp(logh[i]))# exp(max(min(logh[i],20),-20))
+                 }
+                 
+                 #likelihood
+                 
+                 for(i in 1:n){
+                 
+                 prob[i] <- max(0.0001,min(0.9999,1/(1/a[id[i]] + h[id[i]]*initial[i])))
+                 
+                 killed[i] ~ dbin(prob[i],initial[i])
+                 
+                 }
+                 
+                 }

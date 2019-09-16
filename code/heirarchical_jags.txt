@@ -7,33 +7,37 @@
                  for(i in 1:n){
                  
                  prob[i] <- max(0.0001,min(0.9999,1/(1/a[id[i]] + h[id[i]]*initial[i])))
-                 #prob[i] <- max(0.0001,min(0.9999,a[id[i]]*P*T/(1+a[id[i]]*h[id[i]]*initial[i])))
+                 #prob[i] <- max(0.0001,min(0.9999,a[id[i]]/(1+a[id[i]]*h[id[i]]*initial[i])))
+                 
                  killed[i] ~ dbin(prob[i],initial[i])
                  
-                  
                  }
                  
                  #Individual attack rates and handling times vary according to a normal distribution. 
-                
-                  for(i in 1:num.ind){
-                      a[i] ~ dnorm(mu.a, tau1)
-                      h[i] ~ dnorm(mu.h, tau2)
+                 
+                 for(i in 1:num.ind){
+                 a[i] ~ dlnorm(mu.a, tau1)
+                 h[i] ~ dlnorm(mu.h, tau2)
                  }
                  
-                
-                
+                 
+                 
                  #Priors on the individual-level variation 
                  tau1 <- 1/ (sd * sd)
                  sd ~ dgamma(0.01, 0.01)
                  
                  tau2 <- 1/ (sd2 * sd2)
                  sd2 ~ dgamma(0.01, 0.01)
-
-
-                 # hyperpriors based on Dunn et al. 2018 (Ecology)
-                 mu.a ~ dgamma(shape.a, 1/scale.a)
-                 mu.h ~ dgamma(shape.h, 1/scale.h)
                  
+                 
+                 # # hyperpriors based on Dunn et al. 2018 (Ecology)
+                 # mu.a ~ dgamma(shape.a, 1/scale.a)
+                 # mu.h ~ dgamma(shape.h, 1/scale.h)
+
+                 
+                 mu.a ~ dunif(0,1)
+                 mu.h ~ dunif(0,1)
+
                  
                  }
                  
