@@ -2,6 +2,9 @@
 ## test on Sam's data
 ###############################################################
 
+source(here("code","functions.R"))
+source(here("code","setup.R"))
+
 sam <- read.csv(here("data/samdata", "fr_data.csv"))
 sam$id <- as.numeric(sam$lobster_id)
 
