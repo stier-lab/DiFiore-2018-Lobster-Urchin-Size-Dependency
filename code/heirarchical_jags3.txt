@@ -29,7 +29,7 @@ model{
                  
                  for(i in 1:n){
                  
-                 prob[i] <- max(0.0001,min(0.9999,1/(1/a[id[i]] + h[id[i]]*initial[i])))
+                 prob[i] <- max(0.0001,min(0.9999,48/(1/a[id[i]] + h[id[i]]*initial[i])))
                  
                  killed[i] ~ dbin(prob[i],initial[i])
                  

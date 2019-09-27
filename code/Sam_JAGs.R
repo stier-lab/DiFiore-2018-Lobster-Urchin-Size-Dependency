@@ -1,7 +1,7 @@
 ###############################################################
 ## test on Sam's data
 ###############################################################
-
+library(here)
 source(here("code","functions.R"))
 source(here("code","setup.R"))
 
@@ -17,93 +17,90 @@ s <- arrange(s, temp, id, initial)
 
 lattice:: xyplot(killed~initial|as.factor(id), data = s)
 
-killed <- s$killed
-initial <- s$initial
-id <- s$id
-t <- s$temp
-tind <- as.vector(distinct(s, temp, id)[,1])
 
 jagsscript = cat("
 
 model{
-  
-  # This model assumed 4 temperature treatments an 11, 16, 21, 26. This model has three levels of heirarchy: a population level estiamte of the FR, a treatment level estimate of the FR, and an indivual level estiamte of the FR.
-  
-  # PRIORS
-  
-  # Global population estiamte
-      #a
-      logit_mu.a ~ dnorm(0, 1)
-      mu.a <- exp(logit_mu.a)/(1+exp(logit_mu.a))
 
-      #h
-      logit_mu.h ~ dnorm(0, 1)
-      mu.h <- exp(logit_mu.h)/(1+exp(logit_mu.h))
 
-  # Treatment level effects
-      for(i in 1:Ntreats){
+# PRIORS
+
+# Population level estimates
+  
+       mu.logit.a ~ dnorm(0, 0.01)
+       mu.a <- exp(mu.logit.a)/(1+exp(mu.logit.a))
+       mu.h ~ dnorm(0, 0.01)T(0,)
+                 
+
+# Treatment level effects
+    for(i in 1:Ntreats){
         #a
-        t.logit.a[i] ~ dnorm(mu.a, t.tau.a)
+        t.logit.a[i] ~ dnorm(mu.logit.a, t.tau.a)
         t.a[i] <- exp(t.logit.a[i])/(1+exp(t.logit.a[i]))
-
-        #h
-        t.logit.h[i] ~ dnorm(mu.h, t.tau.h)
-        t.h[i] <- exp(t.logit.h[i])/(1+exp(t.logit.h[i]))
-
-      }
-
-  
-  # Individual level effects
-      for(i in 1:num.ind){
-
-        # a
-        loga[i] ~ dnorm(t.a[t[i]], tau_int.a)
-        a[i] <- exp(loga[i])/(1+exp(loga[i]))
-
-        # h
-        logh[i] ~ dnorm(t.h[t[i]], tau_int.h)
-        h[i] <- exp(logh[i])/(1+exp(logh[i]))
-      }
-  
-  # functional response likelihood
-  
-      for(i in 1:n){
         
-        prob[i] <- max(0.0001,min(0.9999,1/(1/a[id[i]] + h[id[i]]*initial[i])))
+        #h
+        t.log.h[i] ~ dnorm(mu.h, t.tau.h)
+        t.h[i] <- exp(max(min(t.log.h[i],20),-20))
+    
+    }
+
+
+# Individual level effects
+    for(i in 1:num.ind){
+        
+        # a
+        loga[i] ~ dnorm(t.logit.a[tind[i]], tau_int.a)
+        a[i] <- exp(loga[i])/(1+exp(loga[i]))
+        
+        # h
+        logh[i] ~ dnorm(t.log.h[tind[i]], tau_int.h)
+        h[i] <- exp(max(min(logh[i],10),-20))
+    }
+
+# functional response likelihood
+
+    for(i in 1:n){
+        
+        prob[i] <- max(0.0001,min(0.9999,T/(1/a[id[i]] + h[id[i]]*initial[i])))
         
         killed[i] ~ dbin(prob[i],initial[i])
-        
-      }
+    
+    }
 
-                 
-  # Variances for all levels
-      sigma_int.a ~dunif(0,10)
-      tau_int.a <- 1/(sigma_int.a*sigma_int.a)
-      sigma_int.h ~dunif(0,10)
-      tau_int.h <- 1/(sigma_int.h*sigma_int.h)
-      
-      sigma_t.a ~ dunif(0,10)
-      t.tau.a <- 1/(sigma_t.a*sigma_t.a)
-      sigma_t.h ~ dunif(0,10)
-      t.tau.h <- 1/(sigma_t.h*sigma_t.h)
-  
+
+
+# Variances for all levels
+    sigma_int.a ~dunif(0,10)
+    tau_int.a <- 1/(sigma_int.a*sigma_int.a)
+    sigma_int.h ~dunif(0,10)
+    tau_int.h <- 1/(sigma_int.h*sigma_int.h)
+    
+    sigma_t.a ~ dunif(0,10)
+    t.tau.a <- 1/(sigma_t.a*sigma_t.a)
+    sigma_t.h ~ dunif(0,10)
+    t.tau.h <- 1/(sigma_t.h*sigma_t.h)
+
 }
+                 
+                 ", file = here("code", "heirarchical_jagsSAM.txt"))
 
-", file = here("code", "heirarchical_jagsSAM.txt"))
 
 model.loc=here("code", "heirarchical_jagsSAM.txt")
 jags.params=c("a", "h", "t.a", "t.h", "mu.a", "mu.h")
 
 
 # Test against simulated dataset.
-jags.data = list("initial"= initial,
-                 "killed" = killed,
-                 "id" = id,
-                 "num.ind" = length(unique(id)),
-                 "n" = length(initial), 
-                 "t" = t, 
-                 "Ntreats" = length(unique(t))
+jags.data = list("initial"= s$initial,
+                 "killed" = s$killed,
+                 "id" = s$id,
+                 "num.ind" = length(unique(s$id)),
+                 "n" = length(s$initial), 
+                 "t" = s$temp, 
+                 "Ntreats" = length(unique(s$temp)), 
+                 "tind" = as.factor(as.vector(distinct(s, temp, id)[,1])), 
+                 "T" = 24
 ) # named list
+
 
 n.chains = 3
 n.burnin = 10000
@@ -113,8 +110,11 @@ model = R2jags::jags(jags.data, parameters.to.save=jags.params,inits=NULL,
                      model.file=model.loc, n.chains = n.chains, n.burnin=n.burnin,
                      n.thin=n.thin, n.iter=n.iter, DIC=TRUE)
 
-a = MCMCsummary(model,params='a') # the alpha estimate here is often bounding up against zero
-h = MCMCsummary(model,params='h')
+a = MCMCsummary(model,params=c('a'), round = 4)
+h = MCMCsummary(model,params=c('h'), round = 4)
+
+t.a = MCMCsummary(model,params=c('t.a'), round = 4)
+t.h = MCMCsummary(model,params=c('t.h'), round = 4)
 
 mu.a = MCMCsummary(model,params='mu.a')
 mu.h = MCMCsummary(model,params='mu.h')
@@ -123,33 +123,26 @@ ids <- sort(unique(sam$lobster_id))
 
 #c(bottom, left, top, right)
 
-#png("figures/Sam_fits.png", width = 2000, height = 2000, res = 150)
+png("figures/Sam_fits.png", width = 2000, height = 2000, res = 150)
 d <- par(mfrow = c(5,5), mar = c(4,4,1,1))
 for(i in 1:22){
-  plot(killed ~ jitter(initial),data = s[as.numeric(s$ind) == i, ], xlab="Number of prey",ylab="Number consumed", ylim = c(0,60), main = paste(ids[i]))
+  plot(I(killed/24) ~ jitter(initial),data = s[as.numeric(s$id) == i, ], xlab="Number of prey offered",ylab="Consumption rate", main = paste(ids[i]), ylim = c(0,1.6))
   curve(holling2(x,a[i,1],h[i,1],P=1,T=1),add=TRUE,lty=1) #true curve
   text(x = 10, y = 60, label = paste("a =", round(a[i,1], 3), "\n", "h = ", round(h[i,1], 3)))
   abline(a = 0,b = 1, lty = 4)
 }
 par(d)
-#dev.off()
+dev.off()
 
+d <- par(mfrow = c(2,2), mar = c(4,4,1,1))
+for(i in 1:4){
+  plot(I(killed/24) ~ jitter(initial),data = s[as.numeric(s$temp) == i, ], xlab="Number of prey offered",ylab="Consumption rate", ylim = c(0,1.6), main = paste(levels(s$temp)[i]))
+  curve(holling2(x,t.a[i,1],t.h[i,1],P=1,T=1),add=TRUE,lty=1) #true curve
+  # text(x = 10, y = 60, label = paste("a =", round(a[i,1], 3), "\n", "h = ", round(h[i,1], 3)))
+  # abline(a = 0,b = 1, lty = 4)
+}
+par(d)
 
+MCMCplot(model, params = c("a"), rank= T)
+MCMCplot(model, params = c("h"), rank= T)
 
-mod <- distinct(sam, lobster_id, temp, id) %>% arrange(id)
-mod$a <- a[,1]
-mod$h <- h[,1]
-mod$max.intake <- 1/mod$h
-
-lm.a <- lm(log(a)~log(temp), mod)
-summary(lm.a)
-lm.h <- lm(log(h) ~ log(temp), mod)
-summary(lm.h)
-
-
-p1 <- ggplot(mod, aes(x = log(temp), y = log(a)))+
-  geom_point()
-p2 <- ggplot(mod, aes(x = log(temp), y = log(max.intake)))+
-  geom_point()
-
-cowplot::plot_grid(p1, p2, ncol = 2)

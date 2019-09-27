@@ -1,0 +1,17 @@
+
+model{
+  
+  # likelihood function
+for(i in n){
+  y[i] ~ dnorm(mu[i], tau)
+  mu[i] <- b*x[i]
+}
+  # priors
+  b ~ dnorm(0, 0.001)
+  
+  #Variances
+  
+  sigma ~ dunif(0,10)
+  tau <- 1/(sigma*sigma)
+  
+}

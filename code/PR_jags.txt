@@ -1,0 +1,19 @@
+
+model {
+    for (i in 1:N) {
+      ar[i] <- max(0.0001,avec[block[i]]*pow(size[i]/d,gamma)*exp(1-size[i]/d))
+      prob[i] <- max(0.0001,min(0.9999,1/(1/ar[i]+h*N0[i])))
+      killed[i] ~ dbin(prob[i],N0[i])	
+    }
+    for (i in 1:nblock) {
+      avec0[i] ~ dnorm(0,tau.a)
+      avec[i] <- a*exp(avec0[i])
+    }
+    ## Specify priors
+    tau.a <- pow(sd.a,-2)
+    sd.a ~ dunif(0,1)
+    d ~ dlnorm(0,0.01)
+    gamma ~ dlnorm(0,0.01)
+    h ~ dlnorm(0,0.01)
+    a ~ dlnorm(0,1)
+  }
