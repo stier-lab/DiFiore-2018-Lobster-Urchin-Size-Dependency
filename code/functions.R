@@ -7,6 +7,81 @@ holling2=function(N,a,h,P,T) {
   a*N*P*T/(1+a*h*N)
 }
 
+##############################################################
+## Individual level ML estimates using different packages
+##############################################################
+
+# This function will fit the holling type II using 4 different packages/approaches. DF must be in the form of names(df) <- c("killed", "initial", "ind"). When plot = F it returns a data.frame. When plot = T it returns plots (n = length(x$initial)) for each individual with curves for each fit.
+
+
+fit.individual <- function(x, plot = F, T = 1){
+  
+  if(plot == F){
+    inds <- sort(unique(x$ind))
+    out <- list()
+    df.a <- data.frame(parameter = "a", ind = inds, mle2 = NA, rogers = NA,  nls = NA)
+    df.h <- data.frame(parameter = "h", ind = inds, mle2 = NA, rogers = NA, nls = NA)
+    
+    for(i in inds){
+      tryCatch({
+        #MLE2 package
+        # NLL.holling2=function(a,h,T=T){
+        #   -sum(dbinom(killed,prob=max(0.0001,min(0.9999, T/(1/a+h*initial))),size=initial,log=TRUE))
+        # }
+        
+        temp <- mle2(hollingsII_nll,
+                     start=list(a=0.02,h=1),
+                     data=list(Y = x$killed[x$ind == i], X = x$initial[x$ind == i], T=T),
+                     method = "Nelder-Mead")
+        #method = "L-BFGS",
+        #lower = c(a=1E-6, h=1E-7),
+        #upper = c(a = 2, h = 1))
+        
+        
+        
+        df.a[i,3] <- coef(temp)[1]
+        df.h[i, 3] <- coef(temp)[2]
+        
+        # Friar package
+        
+        temp2 <- frair_fit(killed~initial,data=x[x$ind == i, ],
+                           response="rogersII",
+                           start=list(a = 0.01, h = 0.001), fixed=list(T = T))
+        
+        df.a[i,4] <- coef(temp2)[1]
+        df.h[i, 4] <- coef(temp2)[2]
+        
+        # nls
+        
+        temp3 <- nls(
+          killed ~ (a*T*initial)/(1+a*initial*h),
+          start = c(a = 0.01, h = 0.001), data = x[x$ind == i, ])
+        
+        df.a[i,5] <- coef(temp3)[1]
+        df.h[i, 5] <- coef(temp3)[2]
+        
+      }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+    }
+    
+    df <- rbind(df.a, df.h) %>% gather(package,estimate, -c(parameter, ind)) %>% spread(parameter, estimate)
+    # df$packag.id <- as.numeric(as.factor(df$package))
+    df
+  } else{
+    
+    # make the plot
+    col <- c("red", "green", "blue")
+    
+    for(i in 1:length(inds)){
+      plot(I(killed/T) ~ jitter(initial),data = x[as.numeric(x$ind) == i, ], xlab="Number of prey",ylab="Number consumed", ylim = c(0,1))
+      curve(holling2(x,df$a[df$ind == i & df$package == "rogers"],df$h[df$ind == i & df$package == "rogers"],P=1,T=1),add=TRUE,col = col[1],lty=1) #true curve
+      curve(holling2(x,df$a[df$ind == i & df$package== "mle2"],df$h[df$ind == i & df$package== "mle2"],P=1,T=1),add=TRUE,col=col[2],lty=3) #true curve
+      curve(holling2(x,df$a[df$ind == i & df$package== "nls"],df$h[df$ind == i & df$package== "nls"],P=1,T=1),add=TRUE,col=col[3],lty=4) #true curve
+      
+      legend("topleft", legend = c("rogers", "mle2", "nls"), col = c("red", "green", "blue"), lty = c(1,2,3,4))
+    }
+    
+    
+  }}
 
 
 

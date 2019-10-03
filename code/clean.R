@@ -67,3 +67,20 @@ df <- left_join(df, lw) %>% mutate(id = as.factor(id))
 ###############################################################################
 
 write.table(df, here("data/cleaned","loburc_cleaned.csv"), sep = ",", quote = F, row.names = F)
+
+#################################################################
+## Lobster metadata file
+#################################################################
+
+md <- distinct(df, id, size, treatment, udiam, mr, mc)
+
+write.csv(md, here("data", "lob-metadata.csv"), row.names = F)
+
+
+
+
+
+
+
+
+

@@ -1,172 +1,93 @@
 
-###########################################################
-## fit jags function
-############################################################
-
-fit.jags <- function(data, n.chains = 3, n.burnin = 10000, n.thin = 2, n.iter = 30000){
-  killed <- data$killed
-  initial <- data$initial
-  
-  jags.data = list("initial"= initial,
-                   "killed" = killed,
-                   "P" = 1, 
-                   "T" = 1, 
-                   n = length(initial), 
-                   scale.a = scale.a, 
-                   shape.a = shape.a, 
-                   scale.h = scale.h, 
-                   shape.h = shape.h) # named list
-  
-  model.loc=here("code","BH_jags.txt") # name of the txt file
-  jags.params=c("a", "h")
-  
-  jags(jags.data,parameters.to.save=jags.params,inits=NULL,
-       model.file=model.loc, n.chains = n.chains, n.burnin=n.burnin,
-       n.thin=n.thin, n.iter=n.iter, DIC=TRUE)
-  
-}
-
-
-##############################################################
-## Individual level ML estimates using different packages
-##############################################################
-
-# This function will fit the holling type II using 4 different packages/approaches. DF must be in the form of names(df) <- c("killed", "initial", "ind"). When plot = F it returns a data.frame. When plot = T it returns plots (n = length(x$initial)) for each individual with curves for each fit.
-
-
-fit.individual <- function(x, plot = F){
-  
-if(plot == F){
-inds <- sort(unique(x$ind))
-out <- list()
-df.a <- data.frame(parameter = "a", ind = inds, mle2 = NA, frair = NA, nls = NA, JAGs = NA)
-df.h <- data.frame(parameter = "h", ind = inds, mle2 = NA, frair = NA, nls = NA, JAGs = NA)
-
-for(i in inds){
-  tryCatch({
-  # MLE2 package
-  temp <- mle2(killed~dbinom(prob=pmax(eps,
-                             pmin(1-eps,1/(1/a+h*initial))),
-                   size=initial),start=list(a=.01,h=.001),data=x[x$ind == i,])
-  
-  df.a[i,3] <- coef(temp)[1]
-  df.h[i, 3] <- coef(temp)[2]
-  
-  # Friar package
-  
-  temp2 <- frair_fit(killed~initial,data=x[x$ind == i, ],
-                  response='hollingsII',
-                  start=list(a = 0.01, h = 0.001), fixed=list(T = 1))
-  
-  df.a[i,4] <- coef(temp2)[1]
-  df.h[i, 4] <- coef(temp2)[2]
-  
-  # nls
-  
-  temp3 <- nls(
-    killed ~ (a*initial)/(1+a*initial*h),
-    start = c(a = 0.01, h = 0.001), data = x[x$ind == i, ])
-  
-  df.a[i,5] <- coef(temp3)[1]
-  df.h[i, 5] <- coef(temp3)[2]
-  
-  # jags
-  
-  temp4 <- fit.jags(data = x[x$ind == i, ])
-  
-  df.a[i,6] <- temp4$BUGSoutput$mean[1]
-  df.h[i, 6] <- temp4$BUGSoutput$mean[3]
-
-  }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
-}
-
-df <- rbind(df.a, df.h) %>% gather(package,estimate, -c(parameter, ind)) %>% spread(parameter, estimate)
-df$packag.id <- as.numeric(as.factor(df$package))
-df
-} else{
-
-# make the plot
-col <- c("red", "green", "blue", "gray", "black")
-
-for(i in 1:length(inds)){
-  plot(killed ~ jitter(initial),data = x[as.numeric(x$ind) == i, ], xlab="Number of prey",ylab="Number consumed", ylim = c(0,15))
-  curve(holling2(x,df$a[df$ind == i & df$package == "frair"],df$h[df$ind == i & df$package == "frair"],P=1,T=1),add=TRUE,col = col[1],lty=1) #true curve
-  curve(holling2(x,df$a[df$ind == i & df$package == "JAGs"],df$h[df$ind == i & df$package == "JAGs"],P=1,T=1),add=TRUE,col=col[2],lty=2) #true curve
-  curve(holling2(x,df$a[df$ind == i & df$package== "mle2"],df$h[df$ind == i & df$package== "mle2"],P=1,T=1),add=TRUE,col=col[3],lty=3) #true curve
-  curve(holling2(x,df$a[df$ind == i & df$package== "nls"],df$h[df$ind == i & df$package== "nls"],P=1,T=1),add=TRUE,col=col[4],lty=4) #true curve
-  
-  legend("topleft", legend = c("frair", "jags", "mle2", "nls"), col = c("red", "green", "blue", "gray"), lty = c(1,2,3,4))
-}
-
-}}
-
-
-
 ########################################################
 ## read in the lobster data 
 #########################################################
 
 df <- read.table(here("data/cleaned","loburc_cleaned.csv"), header = T, sep = ",")
 
-x <- data.frame(killed = df$num_consumed, initial = df$num_offered, ind = as.numeric(df$id))
+x <- data.frame(killed = df$killed, initial = df$initial, ind = as.numeric(df$id))
 
-out <- fit.individual(x = x, plot = F)
-
-
-
-df <- fit.individual(x, plot = F) 
-fit.individual(x , plot = T)
+df <- fit.individual(x, T = 48,  plot = F) 
+fit.individual(x , plot = T, T = 48)
 
 
 
+# ------------------------------------------------------------
+# examine variation in estimates between different packages
 
-temp <- df %>% dplyr::select(-packag.id) %>%
+
+# bring in JAGS data
+jg <- read.csv(here("data", "JAGSparam-estimates.csv"))
+
+forbind <- jg[,c("ind", "package", "mean.a", "mean.h")]
+names(forbind) <- c("ind", "package", "a", "h")
+
+df <- df %>% bind_rows(forbind) %>% group_by(ind) %>% arrange(ind, package)
+write.csv(df, here("data", "paramest-all.csv"), row.names = F)
+
+p1 <- ggplot(df)+
+  coord_flip() + 
+  geom_hline(yintercept = 0, colour = gray(1/2), lty = 2)+
+  # geom_linerange(aes(x = vnames, ymin = Coefficient - SE, ymax = Coefficient + SE, color = Model), lwd = 1, position = position_dodge(width = 1/2))+
+  geom_point(aes(x = as.factor(ind), y = a, color = package), lwd = 1, position = position_dodge(width = 0.5), shape = 21)+
+  scale_y_continuous(limits = c(0,0.25) )+
+  theme_bw()+
+  theme(axis.title.y = element_blank(), axis.text = element_text(size = 12), axis.title = element_text(size = 14))
+
+p2 <- ggplot(df)+
+  coord_flip() + 
+  geom_hline(yintercept = 0, colour = gray(1/2), lty = 2)+
+  # geom_linerange(aes(x = vnames, ymin = Coefficient - SE, ymax = Coefficient + SE, color = Model), lwd = 1, position = position_dodge(width = 1/2))+
+  geom_point(aes(x = as.factor(ind), y = h, color = package), lwd = 1, position = position_dodge(width = 0.5), shape = 21)+
+  theme_bw()+
+  theme(axis.title.y = element_blank(), axis.text = element_text(size = 12), axis.title = element_text(size = 14))
+
+cowplot::plot_grid(p1, p2, nrow = 1)
+
+
+fp <- df %>% group_by(ind) %>%
   gather(parameter, estimate, -c(ind, package)) %>%
-  
-  mutate(estimate = round(estimate, 3)) %>% 
-           spread(package, estimate)
+  mutate(paste = paste(package, parameter, sep = ""), 
+         parameter = NULL, 
+         package = NULL) %>%
+  spread(paste, estimate)
 
+png(here("figures", "paramter-compare.png"), width = 400*3, height = 1200*3, res =150)
+d <- par(mfcol = c(6,2), mar = c(4,4,1,0.5))
+plot(mle2a ~ rogersa, fp, ylim = c(0,0.1), xlim = c(0, 0.1))
+abline(a=0,b=1)
+plot(mle2a ~ nlsa, fp, ylim = c(0,0.1), xlim = c(0, 0.1))
+abline(a=0,b=1)
+plot(rogersa ~ nlsa, fp)
+abline(a=0,b=1)
+plot(JAGSa ~ mle2a, fp, xlim = c(0, 0.1), ylim = c(0,1))
+abline(a=0,b=1)
+plot(JAGSa ~ rogersa, fp, xlim = c(0, 0.1), ylim = c(0,1))
+abline(a=0,b=1)
+plot(JAGSa ~ nlsa, fp, xlim = c(0, 0.1), ylim = c(0,1))
+abline(a=0,b=1)
 
+plot(mle2h ~ rogersh, fp)
+abline(a=0,b=1)
+plot(mle2h ~ nlsh, fp)
+abline(a=0,b=1)
+plot(rogersh ~ nlsh, fp)
+abline(a=0,b=1)
+plot(JAGSh ~ mle2h, fp)
+abline(a=0,b=1)
+plot(JAGSh ~ rogersh, fp)
+abline(a=0,b=1)
+plot(JAGSh ~ nlsh, fp)
+abline(a=0,b=1)
 
+par(d)
 
+dev.off()
 
+psych::pairs.panels(fp[,c("JAGSa", "mle2a", "rogersa", "nlsa")], ellipses = F)
+psych::pairs.panels(fp[,c("JAGSh", "mle2h", "rogersh", "nlsh")], ellipses = F)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# ------------------------------------------------------------
 
 
 

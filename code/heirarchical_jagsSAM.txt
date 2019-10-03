@@ -8,7 +8,7 @@ model{
 # Population level estimates
   
        mu.logit.a ~ dnorm(0, 0.01)
-       #mu.a <- exp(mu.logit.a)/(1+exp(mu.logit.a))
+       mu.a <- exp(mu.logit.a)/(1+exp(mu.logit.a))
        mu.h ~ dnorm(0, 0.01)T(0,)
                  
 
@@ -16,7 +16,7 @@ model{
     for(i in 1:Ntreats){
         #a
         t.logit.a[i] ~ dnorm(mu.logit.a, t.tau.a)
-        t.a[i] <- exp(max(min(t.logit.a[i],20),-20))
+        t.a[i] <- exp(t.logit.a[i])/(1+exp(t.logit.a[i]))
         
         #h
         t.log.h[i] ~ dnorm(mu.h, t.tau.h)
@@ -30,7 +30,7 @@ model{
         
         # a
         loga[i] ~ dnorm(t.logit.a[tind[i]], tau_int.a)
-        a[i] <- exp(max(min(loga[i],20),-20))
+        a[i] <- exp(loga[i])/(1+exp(loga[i]))
         
         # h
         logh[i] ~ dnorm(t.log.h[tind[i]], tau_int.h)

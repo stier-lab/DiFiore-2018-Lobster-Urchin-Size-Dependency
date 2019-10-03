@@ -8,7 +8,7 @@ source(here("code", "functions.R"))
 #####################################
 
 
-df <- read.table(here("data/cleaned","loburc_cleaned.csv"), header = T, sep = ",")
+df <- read.table(here("data/cleaned","loburc_cleaned.csv"), header = T, sep = ",") %>% arrange(treatment, id)
 
 ##################################################################
 ## the model
@@ -20,60 +20,64 @@ model{
 # PRIORS
 
 # Population level estimates
-  
-   mu.logit.a ~ dnorm(0, 0.01)
-   mu.a <- exp(mu.logit.a)/(1+exp(mu.logit.a))
-   mu.h ~ dnorm(0, 0.01)T(0,)
+
+    mu.logit.a ~ dnorm(0, 0.01)
+    mu.a <- exp(mu.logit.a)/(1+exp(mu.logit.a))
+    mu.log.h ~ dnorm(0, 0.01)T(0,)
+    mu.h <- exp(max(min(mu.log.h, 20), -20))
+    
+
 
 # Treatment level effects
-for(i in 1:Ntreats){
-  #a
-  t.logit.a[i] ~ dnorm(mu.logit.a, t.tau.a)
-  t.a[i] <- exp(t.logit.a[i])/(1+exp(t.logit.a[i]))
-  
-  #h
-  t.log.h[i] ~ dnorm(mu.h, t.tau.h)
-  t.h[i] <- exp(max(min(t.log.h[i],20),-20))
-  
-}
+    for(i in 1:Ntreats){
+        #a
+        t.logit.a[i] ~ dnorm(mu.logit.a, t.tau.a)
+        t.a[i] <- exp(t.logit.a[i])/(1+exp(t.logit.a[i]))
+        
+        #h
+        t.log.h[i] ~ dnorm(mu.log.h, t.tau.h)
+        t.h[i] <- exp(max(min(t.log.h[i],20),-20))
+    
+    }
 
 
 # Individual level effects
-for(i in 1:num.ind){
-  
-  # a
-  loga[i] ~ dnorm(t.logit.a[tind[i]], tau_int.a)
-  a[i] <- exp(loga[i])/(1+exp(loga[i]))
-  
-  # h
-  logh[i] ~ dnorm(t.log.h[tind[i]], tau_int.h)
-  h[i] <- exp(max(min(logh[i],10),-20))
-}
+    for(i in 1:num.ind){
+        
+        # a
+        loga[i] ~ dnorm(t.logit.a[tind[i]], tau_int.a)
+        a[i] <- exp(loga[i])/(1+exp(loga[i]))
+        
+        # h
+        logh[i] ~ dnorm(t.log.h[tind[i]], tau_int.h)
+        h[i] <- exp(max(min(logh[i],10),-20))
+    }
 
 # functional response likelihood
 
-for(i in 1:n){
-  
-  prob[i] <- max(0.0001,min(0.9999,T/(1/a[id[i]] + h[id[i]]*initial[i])))
-  
-  killed[i] ~ dbin(prob[i],initial[i])
-  
-}
+    for(i in 1:n){
+    
+        prob[i] <- max(0.0001,min(0.9999,T/(1/a[id[i]] + h[id[i]]*initial[i])))
+        
+        killed[i] ~ dbin(prob[i],initial[i])
+    
+    }
 
 
 
 # Variances for all levels
-sigma_int.a ~dunif(0,10)
-tau_int.a <- 1/(sigma_int.a*sigma_int.a)
-sigma_int.h ~dunif(0,10)
-tau_int.h <- 1/(sigma_int.h*sigma_int.h)
+    sigma_int.a ~dunif(0,10)
+    tau_int.a <- 1/(sigma_int.a*sigma_int.a)
+    sigma_int.h ~dunif(0,10)
+    tau_int.h <- 1/(sigma_int.h*sigma_int.h)
+    
+    sigma_t.a ~ dunif(0,10)
+    t.tau.a <- 1/(sigma_t.a*sigma_t.a)
+    sigma_t.h ~ dunif(0,10)
+    t.tau.h <- 1/(sigma_t.h*sigma_t.h)
 
-sigma_t.a ~ dunif(0,10)
-t.tau.a <- 1/(sigma_t.a*sigma_t.a)
-sigma_t.h ~ dunif(0,2)
-t.tau.h <- 1/(sigma_t.h*sigma_t.h)
-
-}", file = here("code", "heirarchical_jagsLU.txt"))
+}
+", file = here("code", "heirarchical_jagsLU.txt"))
 
 
 
@@ -94,17 +98,28 @@ jags.data = list("initial"= df$initial,
 ) # named list
 
 n.chains = 3
-n.burnin = 10000
+n.burnin = 25000
 n.thin = 2
-n.iter = 25000
+n.iter = 50000
 model = R2jags::jags(jags.data,parameters.to.save=jags.params,inits=NULL,
                      model.file=model.loc, n.chains = n.chains, n.burnin=n.burnin,n.thin=n.thin, n.iter=n.iter, DIC=TRUE)
 
 a = MCMCsummary(model,params='a', round = 4)
 h = MCMCsummary(model,params='h', round = 4)
 
+out <- data.frame(ind = 1:46, package = "JAGS", mean.a = a[,1],
+                  a.low = a[,3], 
+                  a.high = a[,5],
+                  mean.h = h[,1], 
+                  h.low = h[,3], 
+                  h.high = h[,5])
+write.csv(out, here("data", "JAGSparam-estimates.csv"), row.names = F)
+
 t.a = MCMCsummary(model,params='t.a', round = 4)
 t.h = MCMCsummary(model,params='t.h', round = 4)
+
+mu.a = MCMCsummary(model,params='mu.a', round = 4)
+mu.h = MCMCsummary(model,params='mu.h', round = 4)
 
 ids <- distinct(df, id, size, treatment, udiam) %>% arrange(id)
 
@@ -125,6 +140,8 @@ for(i in 1:3){
 }
 par(d)
 
+plot(I(killed/48) ~ jitter(initial),data = df, xlab="Number of prey",ylab="Consumption rate (prey consumed per predator per hour)", ylim = c(0,1))
+curve(holling2(x,mu.a[1],mu.h[1],P=1,T=1),add=TRUE,col=1,lty=1) #true curve
 
 mod <- distinct(df, id, size, treatment, mr, mc) %>% arrange(id)
 mod$a <- a[,1]
@@ -164,7 +181,7 @@ ggplot(mod, aes(x = log(mc), y = log(a)))+
 
 ggplot(mod, aes(x = mc, y = h))+ 
   geom_point()+
-  facet_wrap(~treatment)
+  facet_wrap(~treatment, scales = "free")
 
 ggplot(mod, aes(x = mc, y = max.intake))+ 
   geom_point()+
@@ -176,9 +193,12 @@ ggplot(mod, aes(x = log(size.ratio), y = log(a)))+
   geom_point()
 
 
-
-
-
+ggplot(mod, aes(x = size.ratio, y = max.intake))+ 
+  geom_point()
+ggplot(mod, aes(x = size.ratio, y = log(h)))+ 
+  geom_point()
+ggplot(mod, aes(x = size.ratio, y = a))+ 
+  geom_point()
 
 
 
