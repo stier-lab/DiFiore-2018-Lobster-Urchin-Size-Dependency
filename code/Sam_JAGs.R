@@ -5,6 +5,31 @@ library(here)
 source(here("code","functions.R"))
 source(here("code","setup.R"))
 
+#uncode the following lines if you don't run through the repo!
+
+# ##########################################
+# ## Libraries
+# ##########################################
+# library(tidyverse)
+# library(ggplot2)
+# library(tidyr)
+# library(dplyr)
+# library(R2jags)
+# library(rjags)
+# library(MCMCvis)
+# library(ggpubr)
+# library(cowplot)
+# library(here)
+# library(ggpubr)
+# library(bbmle)
+# library(lme4)
+# library(lmerTest)
+# 
+# 
+# holling2=function(N,a,h,P,T) {
+#   a*N*P*T/(1+a*h*N)
+# }
+
 sam <- read.csv(here("data/samdata", "fr_data.csv"))
 sam$id <- as.numeric(sam$lobster_id)
 

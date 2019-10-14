@@ -12,17 +12,17 @@ model{
     
 
 
-# # Treatment level effects
-#     for(i in 1:Ntreats){
-#         #a
-#         t.logit.a[i] ~ dnorm(mu.logit.a, t.tau.a)
-#         t.a[i] <- exp(t.logit.a[i])/(1+exp(t.logit.a[i]))
-#         
-#         #h
-#         t.log.h[i] ~ dnorm(mu.log.h, t.tau.h)
-#         t.h[i] <- exp(max(min(t.log.h[i],20),-20))
-#     
-#     }
+# Treatment level effects
+    for(i in 1:Ntreats){
+        #a
+        t.logit.a[i] ~ dnorm(mu.logit.a, t.tau.a)
+        t.a[i] <- exp(t.logit.a[i])/(1+exp(t.logit.a[i]))
+        
+        #h
+        t.log.h[i] ~ dnorm(mu.log.h, t.tau.h)
+        t.h[i] <- exp(max(min(t.log.h[i],20),-20))
+    
+    }
 
 
 # Individual level effects
@@ -55,9 +55,9 @@ model{
     sigma_int.h ~dunif(0,10)
     tau_int.h <- 1/(sigma_int.h*sigma_int.h)
     
-    # sigma_t.a ~ dunif(0,10)
-    # t.tau.a <- 1/(sigma_t.a*sigma_t.a)
-    # sigma_t.h ~ dunif(0,10)
-    # t.tau.h <- 1/(sigma_t.h*sigma_t.h)
+    sigma_t.a ~ dunif(0,10)
+    t.tau.a <- 1/(sigma_t.a*sigma_t.a)
+    sigma_t.h ~ dunif(0,10)
+    t.tau.h <- 1/(sigma_t.h*sigma_t.h)
 
 }

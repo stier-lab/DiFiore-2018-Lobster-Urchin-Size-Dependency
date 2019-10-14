@@ -125,7 +125,7 @@ ids <- distinct(df, id, size, treatment, udiam) %>% arrange(id)
 
 d <- par(mfrow = c(5,5), mar = c(4,4, 1,1))
 for(i in 1:46){
-  plot(I(killed/48) ~ jitter(initial),data = df[as.numeric(df$id) == i, ], xlab="Number of prey",ylab="Consumption rate (prey consumed per predator per hour)", ylim = c(0,1), main = paste(as.numeric(unique(df$id))[i]))
+  plot(I(killed/48) ~ initial,data = df[as.numeric(df$id) == i, ], xlab="Number of prey",ylab="Consumption rate (prey consumed per predator per hour)", ylim = c(0,1), main = paste(as.numeric(unique(df$id))[i]))
   curve(holling2(x,a[i,1],h[i,1],P=1,T=1),add=TRUE,col=1,lty=1) #true curve
   text(x = 10, y = 0.6, label = paste("a = ", round(a[i,1], 3), "\nh =", round(h[i,1], 3), "\n lsize = ", ids[i, 2], "\n usize =", levels(df$id)[i], sep = ""))
 }
@@ -143,66 +143,121 @@ par(d)
 plot(I(killed/48) ~ jitter(initial),data = df, xlab="Number of prey",ylab="Consumption rate (prey consumed per predator per hour)", ylim = c(0,1))
 curve(holling2(x,mu.a[1],mu.h[1],P=1,T=1),add=TRUE,col=1,lty=1) #true curve
 
-mod <- distinct(df, id, size, treatment, mr, mc) %>% arrange(id)
-mod$a <- a[,1]
-mod$h <- h[,1]
-mod$max.intake <- 1/mod$h
-levels(mod$treatment) <- c("urc_small", "urc_medium", "urc_large")
-#mod <- mod[mod$id != "N07", ]
+# mod <- distinct(df, id, size, treatment, mr, mc) %>% arrange(id)
+# mod$a <- a[,1]
+# mod$h <- h[,1]
+# mod$max.intake <- 1/mod$h
+# levels(mod$treatment) <- c("urc_small", "urc_medium", "urc_large")
+# #mod <- mod[mod$id != "N07", ]
+# 
+# 
+# lm1 <- lm(log(a) ~ log(mr) + log(mc), data = mod)
+# 
+# lm1 <- lm(log(a) ~ log(mr) + log(I(mc/mr)) + I(mc/mr), data = mod)
+# 
+# mod$out <- predict(lm1)
+# plot(out ~ log(I(mod$mc/mod$mr)))
+# 
+# lm2 <- lm(log(h) ~ log(mr) + log(mc), data = mod)
+# 
+# ggplot(mod, aes(x = mc/mr, y = a))+ 
+#   geom_point(aes(color = treatment, size = treatment), pch = 21)+
+#   geom_smooth(method = "lm", aes(color = treatment))
+# 
+# ggplot(mod, aes(x = mc, y = h))+ 
+#   geom_point(aes(color = treatment, size = treatment), pch = 21)
+# 
+# 
+# 
+# 
+# ggplot(mod, aes(x = mc, y = a))+ 
+#   geom_point()+
+#   facet_wrap(~treatment)
+# 
+# ggplot(mod, aes(x = log(mc), y = log(a)))+ 
+#   geom_point()+
+#   facet_wrap(~treatment)
+# 
+# 
+# ggplot(mod, aes(x = mc, y = h))+ 
+#   geom_point()+
+#   facet_wrap(~treatment, scales = "free")
+# 
+# ggplot(mod, aes(x = mc, y = max.intake))+ 
+#   geom_point()+
+#   facet_wrap(~treatment, scales = "free")
+# 
+# mod$size.ratio <- mod$mc / mod$mr
+# 
+# ggplot(mod, aes(x = log(size.ratio), y = log(a)))+
+#   geom_point()
+# 
+# 
+# ggplot(mod, aes(x = size.ratio, y = max.intake))+ 
+#   geom_point()
+# ggplot(mod, aes(x = size.ratio, y = log(h)))+ 
+#   geom_point()
+# ggplot(mod, aes(x = size.ratio, y = a))+ 
+#   geom_point()
+# 
+# 
+# 
+# 
+# 
+# MCMCplot(model, params = "a", rank = T)
+# MCMCplot(model, params = "h", rank = T)
 
 
-lm1 <- lm(log(a) ~ log(mr) + log(mc), data = mod)
+#--------------------------------------------------------------------------
+## Coefficient plot arranged by size
+#--------------------------------------------------------------------------
 
-lm1 <- lm(log(a) ~ log(mr) + log(I(mc/mr)) + I(mc/mr), data = mod)
+md <- read.csv(here("data", "lob-metadata.csv"))
+md$id.n <- as.numeric(md$id)
 
-mod$out <- predict(lm1)
-plot(out ~ log(I(mod$mc/mod$mr)))
+md <- md %>% arrange(id.n) %>% 
+  mutate(name = id, 
+         id  = NULL)
 
-lm2 <- lm(log(h) ~ log(mr) + log(mc), data = mod)
+out <- out %>% left_join(md, by = c("ind" = "id.n"))
 
-ggplot(mod, aes(x = mc/mr, y = a))+ 
-  geom_point(aes(color = treatment, size = treatment), pch = 21)+
-  geom_smooth(method = "lm", aes(color = treatment))
-
-ggplot(mod, aes(x = mc, y = h))+ 
-  geom_point(aes(color = treatment, size = treatment), pch = 21)
-
-
+out$ratio <- out$mc / out$mr
+out$name.ord <- factor(out$name, levels = out$name[order(out$mc)])
 
 
-ggplot(mod, aes(x = mc, y = a))+ 
-  geom_point()+
-  facet_wrap(~treatment)
+ggplot(out[out$name != "N07", ])+
+  coord_flip() + 
+  geom_hline(yintercept = 0, colour = gray(1/2), lty = 2)+
+  geom_linerange(aes(x = name.ord, ymin = a.low, ymax = a.high), lwd = 1, position = position_dodge(width = 1/2))+
+  geom_point(aes(x = name.ord, y = mean.a), pch = 20, size = 3, lwd = 1, position = position_dodge(width = 0.5), shape = 21)+
+  theme_bw()+
+  theme(axis.title.y = element_blank(), axis.text = element_text(size = 12), axis.title = element_text(size = 14))
 
-ggplot(mod, aes(x = log(mc), y = log(a)))+ 
-  geom_point()+
-  facet_wrap(~treatment)
+ggplot(out[out$name != "N07", ])+
+  coord_flip() + 
+  geom_hline(yintercept = 0, colour = gray(1/2), lty = 2)+
+  geom_linerange(aes(x = name.ord, ymin = log(h.low+1), ymax = log(h.high+1)), lwd = 1, position = position_dodge(width = 1/2))+
+  geom_point(aes(x = name.ord, y = log(mean.h+1)), pch = 20, size = 3, lwd = 1, position = position_dodge(width = 0.5), shape = 21)+
+  theme_bw()+
+  theme(axis.title.y = element_blank(), axis.text = element_text(size = 12), axis.title = element_text(size = 14))
 
-
-ggplot(mod, aes(x = mc, y = h))+ 
-  geom_point()+
-  facet_wrap(~treatment, scales = "free")
-
-ggplot(mod, aes(x = mc, y = max.intake))+ 
-  geom_point()+
-  facet_wrap(~treatment, scales = "free")
-
-mod$size.ratio <- mod$mc / mod$mr
-
-ggplot(mod, aes(x = log(size.ratio), y = log(a)))+
-  geom_point()
-
-
-ggplot(mod, aes(x = size.ratio, y = max.intake))+ 
-  geom_point()
-ggplot(mod, aes(x = size.ratio, y = log(h)))+ 
-  geom_point()
-ggplot(mod, aes(x = size.ratio, y = a))+ 
-  geom_point()
+cols <- colorRampPalette(c("#ece2f0", "#014636"))
+col <- cols(46)
+png(here("figures", "individualfitsinone.png"), width = 1000*2, height = 563*2, res = 300)
+par(mar = c(4,5,1,1))
+plot(I(killed/48) ~ jitter(initial),data = df, xlab="Number of prey",ylab="Consumption rate \n(ind. per predator per hour)", ylim = c(0,1))
+for(i in 1:46){
+  curve(holling2(x,a[i,1],h[i,1],P=1,T=1),add=TRUE,lty=1, col = col[i])
+}
+dev.off()
 
 
 
 
 
-MCMCplot(model, params = "a", rank = T)
-MCMCplot(model, params = "h", rank = T)
+
+
+
+
+
+

@@ -42,7 +42,14 @@ ggplot(df, aes(x = log(mc), y = log10(I(1/h)+1)))+
   # scale_y_continuous(limits = c(0,0.10))+
   facet_wrap(~package, scales = "free")
 
+ggplot(df, aes(x = ratio, y = log10(a+1)))+
+  geom_point()
 
+
+plot(log10(a+1) ~ ratio, data = df[df$package == "JAGS", ], ylab = "log(a + 1)")
+
+lm1 <- lm(log10(a+1) ~ ratio, data = df[df$package == "JAGS", ])
+summary(lm1)
 
 #--------------------------------------------------------------------------
 ## Barrios-Oneill h ~ R 
@@ -60,17 +67,17 @@ newdat <- data.frame(ratio = seq(min(df$ratio, na.rm = T), max(df$ratio, na.rm =
 
 newdat$predicted <- predict(mod, newdata = newdat)
 
-plot(log10(h+1) ~ ratio, data = df)
+
+png(here("figures", "ha-bodysize-fit.png"), width = 1200, height = 600, res = 200)
+d <- par(mfrow = c(1,2), mar = c(4,4,1,1))
+
+plot(log10(a+1) ~ ratio, data = df[df$package == "JAGS", ], ylab = "log(a + 1)", xlab = "Predator:prey body size ratio")
+
+plot(log10(h+1) ~ ratio, data = df[df$package == "JAGS", ], ylab = "log(h +1)", xlab = "Predator:prey body size ratio")
 lines(predicted ~ ratio, data = newdat)
 
-
-
-
-
-
-
-
-
+par(d)
+dev.off()
 
 
 

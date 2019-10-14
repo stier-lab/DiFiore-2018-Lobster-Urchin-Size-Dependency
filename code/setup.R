@@ -14,7 +14,5 @@ library(here)
 library(ggpubr)
 library(bbmle)
 library(lme4)
-
-# library(list2df) #as having trouble with this "ackage ‘list2df’ is not available (for R version 3.5.3)"
-#maybe this? https://stackoverflow.com/questions/25721884/how-should-i-deal-with-package-xxx-is-not-available-for-r-version-x-y-z-wa
+library(lmerTest)
 
