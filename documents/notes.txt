@@ -1,0 +1,32 @@
+
+# count df
+date(year, month, day), site, transect (or however it is uniquely defined), species, density (ind. per m2)
+
+# size df 
+date(year, month, day), site, transect (or however it is uniquely defined), species, size
+	- each row is a different individual, with the metadata repeated across individuals
+
+# biomass df (do this later!!!) 
+date(year, month, day), site, transect (or however it is uniquely defined), species, biomass
+
+
+# workflow 
+
+1. Build Pisco data sets for counts and size. 
+	- lobster size is nested within the count dataframe so this will have to be summarized to get counts, and then subset to get sizes for the size df 
+
+2. Combine LTER and PISCO size dfs 
+
+3. Combine LTER and PISCO count dfs
+
+4. Build some simple LME's looking for correlations between lobster size and urchin size. I would expect sites with larger lobsters would have larger urchins... 
+
+5. Build some simple LME's looking for correlations between lobster abundance and urchin abundance. I would expect sites with more lobsters would have fewer urchins... maybe...
+
+6. Construct histograms
+
+7. Build two 3 panel figure: a & b are size/abundance histograms of lobsters and urchins, and c) the bottom panel is urchin size/abundance ~ lobster size/abundance. 
+
+#---------------------------------------------------------------
+# Ok so this establishes the pattern... then we tested the size-dependence of the functional response to explore the mechanism behind the pattern
+#---------------------------------------------------------------

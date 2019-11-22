@@ -1,79 +1,79 @@
 
 
-                 model{
-                 # PRIORS
-                 
-                 # Population level estimates
-                 
-                 mu.logit.b ~ dnorm(0, 0.01)
-                 mu.b <- exp(mu.logit.b)/(1+exp(mu.logit.b))
-                 mu.log.h ~ dnorm(0, 0.01)T(0,)
-                 mu.h <- exp(max(min(mu.log.h, 20), -20))
-                 mu.log.q ~ dnorm(0, 0.01)T(0,)
-                 mu.q <- exp(max(min(mu.log.q, 20), -20))
-                 
-                 
-                 
-                 # Treatment level effects
-                 for(i in 1:Ntreats){
-                 #a
-                 t.logit.b[i] ~ dnorm(mu.logit.b, t.tau.b)
-                 t.b[i] <- exp(t.logit.b[i])/(1+exp(t.logit.b[i]))
-                 
-                 #h
-                 t.log.h[i] ~ dnorm(mu.log.h, t.tau.h)
-                 t.h[i] <- exp(max(min(t.log.h[i],20),-20))
+model{
+# PRIORS
 
-                 #q 
-                 t.log.q[i] ~ dnorm(mu.log.q, t.tau.q)
-                 t.q[i] <- exp(max(min(t.log.q[i],20),-20))
-                 }
-                 
-                 
-                 # Individual level effects
-                 for(i in 1:num.ind){
-                 
-                 # a
-                 logb[i] ~ dnorm(t.logit.b[tind[i]], tau_int.b)
-                 b[i] <- exp(logb[i])/(1+exp(logb[i]))
-                 
-                 # h
-                 logh[i] ~ dnorm(t.log.h[tind[i]], tau_int.h)
-                 h[i] <- exp(max(min(logh[i],10),-20))
+# Population level estimates
 
-                 # q
-                 logq[i] ~ dnorm(t.log.q[tind[i]], tau_int.q)
-                 q[i] <- exp(max(min(logq[i],10),-20))
-                 }
-                 
-                 # functional response likelihood
-                 
-                 for(i in 1:n){
-                  
-                 prob[i] <- max(0.0001,min(0.9999,
-                                  ((b[id[i]]*initial[i]^(q[id[i]] + 1)*T) /
-                                  (1 + b[id[i]]*h[id[i]]*initial[i]^(q[id[i]]+1)))/initial[i]))
-                 
-                 killed[i] ~ dbin(prob[i],initial[i])
-                 
-                 }
-                 
-                 
-                 
-                 # Variances for all levels
-                 sigma_int.b ~dunif(0,10)
-                 tau_int.b <- 1/(sigma_int.b*sigma_int.b)
-                 sigma_int.h ~dunif(0,10)
-                 tau_int.h <- 1/(sigma_int.h*sigma_int.h)
-                 
-                 sigma_t.b ~ dunif(0,10)
-                 t.tau.b <- 1/(sigma_t.b*sigma_t.b)
-                 sigma_t.h ~ dunif(0,10)
-                 t.tau.h <- 1/(sigma_t.h*sigma_t.h)
+mu.logit.b ~ dnorm(0, 0.01)
+mu.b <- exp(mu.logit.b)/(1+exp(mu.logit.b))
+mu.log.h ~ dnorm(0, 0.01)
+mu.h <- exp(max(min(mu.log.h, 20), -20))
+# mu.log.q ~ dnorm(0, 0.01)T(0,)
+# mu.q <- exp(max(min(mu.log.q, 20), -20))
+mu.q ~ dnorm(0, 0.01)T(0,)
 
-                 sigma_t.q ~ dunif(0,10)
-                 t.tau.q <- 1/(sigma_t.q*sigma_t.q)
-                 sigma_int.q ~dunif(0,10)
-                 tau_int.q <- 1/(sigma_int.q*sigma_int.q)
-                 }
-                 
+
+# Treatment level effects
+for(i in 1:Ntreats){
+#a
+t.logit.b[i] ~ dnorm(mu.logit.b, t.tau.b)
+t.b[i] <- exp(t.logit.b[i])/(1+exp(t.logit.b[i]))
+
+#h
+t.log.h[i] ~ dnorm(mu.log.h, t.tau.h)
+t.h[i] <- exp(max(min(t.log.h[i],20),-20))
+
+#q 
+# t.log.q[i] ~ dnorm(mu.log.q, t.tau.q)
+# t.q[i] <- exp(max(min(t.log.q[i],20),-20))
+t.q[i] ~ dnorm(mu.q, t.tau.q)T(0,)
+}
+
+
+# Individual level effects
+for(i in 1:num.ind){
+
+# a
+logb[i] ~ dnorm(t.logit.b[tind[i]], tau_int.b)
+b[i] <- exp(logb[i])/(1+exp(logb[i]))
+
+# h
+logh[i] ~ dnorm(t.log.h[tind[i]], tau_int.h)
+h[i] <- exp(max(min(logh[i],10),-20))
+
+# # q
+# logq[i] ~ dnorm(t.log.q[tind[i]], tau_int.q)
+# q[i] <- exp(max(min(logq[i],10),-20))
+}
+# 
+# functional response likelihood
+
+for(i in 1:n){
+
+prob[i] <- max(0.0001,min(0.9999,
+              ((b[id[i]]*initial[i]^(1 + t.q[treats[i]])*T) /
+              (1 + b[id[i]]*h[id[i]]*initial[i]^(1 + t.q[treats[i]])))/initial[i]))
+
+killed[i] ~ dbin(prob[i],initial[i])
+
+}
+
+
+
+# Variances for all levels
+sigma_int.b ~dunif(0,10)
+tau_int.b <- 1/(sigma_int.b*sigma_int.b)
+sigma_int.h ~dunif(0,10)
+tau_int.h <- 1/(sigma_int.h*sigma_int.h)
+
+sigma_t.b ~ dunif(0,10)
+t.tau.b <- 1/(sigma_t.b*sigma_t.b)
+sigma_t.h ~ dunif(0,10)
+t.tau.h <- 1/(sigma_t.h*sigma_t.h)
+
+sigma_t.q ~ dunif(0,10)
+t.tau.q <- 1/(sigma_t.q*sigma_t.q)
+# sigma_int.q ~dunif(0,10)
+# tau_int.q <- 1/(sigma_int.q*sigma_int.q)
+}

@@ -7,22 +7,30 @@
 library(here)
 source(here("code", "setup.R"))
 source(here("code", "functions.R"))
+library(frair)
 
-df <- read.table(here("data/cleaned","loburc_cleaned.csv"), header = T, sep = ",") %>% arrange(treatment, id)
+df <- read.table(here("data/cleaned","loburc_cleaned.csv"), header = T, sep = ",") %>%
+  mutate(lobcat = ifelse(size <=70, "small", 
+                         ifelse(size >70 & size <=90, "medium", 
+                                ifelse(size > 90, "large", NA))), 
+         newtreat = as.factor(paste(treatment, lobcat, sep = "-"))) %>%
+  arrange(newtreat, id)
 
 
 # Using frair
 
 # this model assumes that the FR can range from a type II to a type III, and accounts for the fact that prey were not replaced. I fit for both experimental time and in units of hours. 
-m1 <- frair_fit(killed~initial, data=df[df$treatment == "urc_small", ], response='flexp', 
+m1 <- frair_fit(killed~initial, data=df[df$newtreat == "urc_large-small", ], response='flexp', 
                    start=list(b = 0.4, h = 0.06, q = 0.), fixed=list(T=1))
 plot(m1)
 lines(m1)
+summary(m1$fit)
 
-m1.hours <- frair_fit(killed~initial, data=df[df$treatment == "urc_small", ], response='flexp', 
-                start=list(b = 0.4/48, h = 0.06, q = 0.02), fixed=list(T=48))
+m1.hours <- frair_fit(killed~initial, data=df[df$newtreat == "urc_small-large", ], response='flexp', 
+                start=list(b = 0.002, h = 5, q = 1.2), fixed=list(T=48))
 plot(m1.hours)
 lines(m1.hours)
+summary(m1.hours$fit)
 
 m2 <- frair_fit(killed~initial, data=df[df$treatment == "urc_medium", ], response='flexp', 
                 start=list(b = 0.4, h = 0.12, q = 0.89), fixed=list(T=1))
@@ -112,10 +120,51 @@ row.names(diff_t) <- c("g_T1 (Experimental Time)", "g_Td (Days)", "g_Th (Hours)"
 print(diff_t)
 
 
+x <- data.frame(killed = df$killed, initial = df$initial, treat = as.numeric(df$newtreat))
 
+fit.treats <- function(x, plot = F, T = 48){
+  
+  if(plot == F){
+    treats <- sort(unique(x$treat))
+    manual_fit <- list()
+    df.b <- data.frame(parameter = "b", treat = treats, mle2 = NA)
+    df.q <- data.frame(parameter = "q", treat = treats, mle2 = NA)
+    df.h <- data.frame(parameter = "h", treat = treats, mle2 = NA)
+    
+    for(i in treats){
+      tryCatch({
+        # MLE2 package
+        cntrl <- list(trace = 3, maxit = 1000)
+        manual_fit[[i]] <- coef(mle2(flexp_nll, start=list(b = 0.01, h = 1, q = 0.8), fixed=list(T = T),
+                                     method='SANN', data=data.frame(X = x$initial[x$treat == treats[i]], Y = x$killed[x$treat == treats[i]])))
+        
+        temp <- mle2(flexp_nll, start=list(b = manual_fit[[i]][1], q = manual_fit[[i]][2], h = manual_fit[[i]][3]), fixed=list(T = T), 
+                     method='BFGS', data=data.frame(X = x$initial[x$treat == treats[i]], Y = x$killed[x$treat== treats[i]]), control = cntrl)
+        
+        df.b[i,3] <- coef(temp)[1]
+        df.q[i, 3] <- coef(temp)[2]
+        df.h[i, 3] <- coef(temp)[3]
+        
+      }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+    }
+    
+    df <- rbind(df.b, df.q, df.h) %>% gather(package,estimate, -c(parameter, treat)) %>% spread(parameter, estimate)
+    df$packag.id <- as.numeric(as.factor(df$package))
+    df
+  } else{
+    
+    # make the plot
+    col <- c("red", "green", "blue", "gray", "black")
+    
+    for(i in 1:length(inds)){
+      plot(killed ~ jitter(initial),data = x[as.numeric(x$ind) == i, ], xlab="Number of prey",ylab="Number consumed", ylim = c(0,15))
+      curve(holling2(x,df$a[df$ind == i & df$package == "mle2"],df$h[df$ind == i & df$package == "frair"],P=1,T=1),add=TRUE,col = col[1],lty=1) #true curve
+      
+    }
+    
+  }}
 
-
-
+out <- fit.treats(x = x, plot = F)
 
 
 

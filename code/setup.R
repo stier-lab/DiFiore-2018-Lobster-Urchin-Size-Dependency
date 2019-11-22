@@ -1,7 +1,8 @@
 ##########################################
 ## Libraries
 ##########################################
-library(tidyverse)
+#library(tidyverse)
+library(tidybayes)
 library(ggplot2)
 library(tidyr)
 library(dplyr)
@@ -16,3 +17,5 @@ library(bbmle)
 library(lme4)
 library(lmerTest)
 
+
+colors <- rev(c('#7fc97f','#beaed4','#fdc086'))

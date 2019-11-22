@@ -97,4 +97,3 @@ psych::pairs.panels(fp[,c("JAGSh", "mle2h", "rogersh", "nlsh")], ellipses = F)
 
 
 
-

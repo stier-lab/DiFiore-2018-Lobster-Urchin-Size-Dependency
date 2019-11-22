@@ -404,3 +404,9 @@ LEGEND <- function (x, y = NULL, legend, fill = NULL,
 
 
 
+
+inverse.logit <- function(x){
+  exp(x)/(1+exp(x))
+}
+
+

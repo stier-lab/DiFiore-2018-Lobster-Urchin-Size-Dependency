@@ -1,0 +1,20 @@
+Figure list: 
+
+1) Histogram of lobster and urchin size distributions, comparing fished to unfished sites. 
+	-- compile all data from PISCO and LTER
+	-- Do I want to do some modeling here? I.e. do sites with more larger lobsters have larger and/or fewer urchins?
+
+2) FR figure: 
+	- could be a 6 panel with large vs. large, etc... 
+	- a single panel showing the population level fit, and individual level fits in the background?
+
+3) Two panel plot showing a ~ ratio, h ~ ratio, with model fits
+
+4) Two panel, large plot showing a) spatial variation in predation pressure and b) temporal variation in predation pressure?   Maybe just the map?
+	-- post-hoc analysis of if predation pressure is greater in MPAs?
+	-- what is the metric? Lobster may cause variation in the size distribution of urchins? Therefore it makes sense to estimate the predation pressure based solely on predator size, but then how do I deal with the fact that all estimates are based also on prey size? Is there some way to make an estimate across prey sizes?
+
+
+
+!!!!! Need to measure the tanks and convert to density of prey not #offered
+

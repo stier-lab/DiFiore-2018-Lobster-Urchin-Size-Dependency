@@ -114,6 +114,10 @@ model.loc=here("code", "heirarchical_jagsSAM.txt")
 jags.params=c("a", "h", "t.a", "t.h", "mu.a", "mu.h")
 
 
+tind <- distinct(s, temp, id) %>%
+  arrange(id)
+
+tind <- as.factor(as.vector(tind$temp))
 # Test against simulated dataset.
 jags.data = list("initial"= s$initial,
                  "killed" = s$killed,
@@ -122,7 +126,7 @@ jags.data = list("initial"= s$initial,
                  "n" = length(s$initial), 
                  "t" = s$temp, 
                  "Ntreats" = length(unique(s$temp)), 
-                 "tind" = as.factor(as.vector(distinct(s, temp, id)[,1])), 
+                 "tind" = tind,
                  "T" = 24
 ) # named list
 
