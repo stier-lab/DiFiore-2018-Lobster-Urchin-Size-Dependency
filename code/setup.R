@@ -19,3 +19,10 @@ library(lmerTest)
 
 
 colors <- rev(c('#7fc97f','#beaed4','#fdc086'))
+
+devtools::install_github("an-bui/calecopal")
+library(calecopal)
+bigsur <- c("#ECBD95", "#346575", "#0B4221")
+
+cal_palette("bigsur")
+

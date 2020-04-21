@@ -279,9 +279,9 @@ linew <- rep(c(3,2,1), 3)
 linetp <- rep(c(4,3,1), 3)
 
 
-#png(here("figures", "lob-urc-treatmentlevel-FR.png"), width = 1000*3, height = 333*3, res = 300)
+png(here("figures", "lob-urc-treatmentlevel-FR.png"), width = 1000*3, height = 333*3, res = 300)
 #svg(here("figures", "lob-urc-treatmentlevel-FR.svg"), width = 10, height = 3.33)
-d <- par(mfrow = c(1,3), mar = c(4.5,5,3,1), las = 1, bty = "n"
+d <- par(mfrow = c(1,3), mar = c(4.5,5,3,1), las = 1, bty = "n", bg = NA
          #, cex.axis= 1.2, cex.lab = 2, cex.main = 2
 )
 
@@ -306,7 +306,7 @@ legend(x = 5, y = 20, legend = c("Large lobsters (>9.0 cm)", "Medium lobsters (7
 
 par(e)
 par(d)
-#dev.off()
+dev.off()
 
 
 
@@ -484,5 +484,48 @@ plot(y ~ I(10^x))
 plot(y ~ exp(log10(x)))
 
 summary(mod2)
+
+#----------------------------------------------------------------------------------
+# for poster
+#----------------------------------------------------------------------------------
+
+
+newdat <- expand.grid(initial = seq(min(df$initial, na.rm = T), max(df$initial, na.rm = T), length.out = 100), newtreat = unique(df$newtreat)) %>% arrange(newtreat) %>%
+  separate(newtreat, into = c("treatment", "lobcat"), sep = "[-]")
+newdat$a <- rep(t.a$`50%`, each = 100)
+newdat$h <- rep(t.h$`50%`, each = 100)
+newdat$killed <- holling2(N = newdat$initial, a = newdat$a, h = newdat$h, P = 1, T = 48)
+
+poster1 <- ggplot(df, aes(x = initial, y = killed))+
+  geom_jitter(aes(size = treatment, fill = lobcat), pch = 21, show.legend = F, stroke = 1)+
+  scale_size_manual(values = c(4,2.5,1.5))+
+  scale_fill_manual(values = c('#d53e4f','#fc8d59','#fee08b'))+
+  geom_line(data = newdat, aes(x = initial, y = killed, color = lobcat), size = 1.5, show.legend = F)+
+  scale_color_manual(values = c('#d53e4f','#fc8d59','#fee08b'))+
+  facet_wrap(~treatment)
+
+ggsave(here("figures", "forposter1.svg"), poster1, device = "svg", width = 10, height = 10/3)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 

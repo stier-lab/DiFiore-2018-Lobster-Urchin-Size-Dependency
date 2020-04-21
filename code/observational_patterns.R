@@ -205,6 +205,45 @@ ks.test(size$size[size$classcode == "PANINT" & size$reserve == "IN"],
 ks.test(size$size[size$classcode == "STRPURAD" & size$reserve == "IN"], 
         size$size[size$classcode == "STRPURAD" & size$reserve == "OUT"])
 
+#----------------------------------------------------------------------------------
+## Figures for Gordon poster
+#-----------------------------------------------------------------------------------
+
+fposter <- size %>%
+  group_by(reserve, classcode) %>%
+  filter(classcode == "PANINT" & year > year_mpa) %>%
+  mutate(biomass =  0.001352821*(size*10)^2.913963113) %>%
+  ggplot(aes(x = size, group = reserve))+
+  geom_density(aes(fill = reserve), alpha = 0.75, adjust = 1.75)+
+  # geom_vline(aes(xintercept=median, col = reserve))+
+  scale_fill_manual(values = c("#8DBCC3", "#C3948D"))+
+  # scale_color_manual(values = c("#7fbf7b", "#af8dc3"))+
+  labs(x = "Size (cm)", y = "Density", fill = "")+
+  theme_pubclean()
+
+ggsave(here("figures", "poster-histo1.svg"), fposter, device = "svg")
+
+
+fposter2 <- size %>% filter(site %in% c("MOHK", "NAPL"), year > 2011) %>%
+ggplot(aes(x = size, y = as.factor(year)))+
+  geom_density_ridges(aes(fill = classcode), scale = 2, alpha = 0.9)+
+  # geom_vline(aes(xintercept=median, col = reserve))+
+  scale_fill_manual(values = c("#FEE08B", "#af8dc3"))+
+  # scale_color_manual(values = c("#7fbf7b", "#af8dc3"))+
+  labs(x = "Size (cm)", y = "Density", fill = "")+
+  facet_wrap(~site)+
+  theme_pubclean()
+
+ggsave(here("figures", "poster-histo2.svg"), fposter2, device =)
+
+
+geom_density_ridges(aes(fill = site), stat = "identity", scale = 2, alpha = 0.9)+
+
+
+
+
+#-----------------------------------------------------------------------------------
+
 size.plot <- size %>%
   filter(year >= 2011) %>%
   group_by(reserve, classcode) %>%
@@ -615,10 +654,6 @@ ggplot(ratio, aes(x = ratio, y = year))+
   facet_wrap(~site)+
   theme_pubclean()
 
-ggplot(lincoln_weather, aes(x = `Mean Temperature [F]`, y = `Month`, fill = ..x..)) +
-  geom_density_ridges_gradient(scale = 3, rel_min_height = 0.01) +
-  scale_fill_viridis(name = "Temp. [F]", option = "C") +
-  labs(title = 'Temperatures in Lincoln NE in 2016')
 
 
 
@@ -636,12 +671,18 @@ fig1 <- ggplot(ratio_densities, aes(x = ratio, y = year, height = density))+
   scale_x_log10(breaks = c(0, 1, 10, 100), labels = c(0, 1,10, 100))+
   coord_cartesian(xlim = c(0.4, 500))+
   labs(y = "", x = "Potential predator:prey body size ratios")+
-  facet_wrap(~site, nrow = 1)+
+  facet_wrap(~site, nrow = 1, scales = "free")+
   theme_pubclean()+
   theme(strip.background = element_blank(),
-        strip.text.x = element_blank())
+        strip.text.x = element_blank(), 
+        panel.background = element_rect(fill = "transparent"), # bg of the panel
+        plot.background = element_rect(fill = "transparent", color = NA), # bg of the plot
+        panel.grid.major = element_blank(), # get rid of major grid
+        panel.grid.minor = element_blank(), # get rid of minor grid
+        legend.background = element_rect(fill = "transparent"), # get rid of legend bg
+        legend.box.background = element_rect(fill = "transparent")) # get rid of legend panel bg)
 
-ggsave(here("figures", "ratio-ridgeplot.png"), fig1, device = "png", width = 8.5, height = 8.5/2.5)
+ggsave(here("figures", "ratio-ridgeplot.png"), fig1, device = "png", width = 8.5, height = 8.5/2.5,  bg = "transparent")
 
 # ggplot(ratio_densities, aes(x = ratio, y = year, height = density))+
 #   geom_density_ridges_gradient(aes(fill = log(ratio)), stat = "identity", scale = 2, alpha = 0.8, rel_min_height = 0.001, show.legend = F)+
