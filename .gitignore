@@ -1,4 +1,13 @@
+# Ignore base file types that cause issues
 .Rproj.user
 .Rhistory
 .RData
 .Ruserdata
+
+# Ignore large files
+data/cleaned/posteriors_individuals.csv
+data/cleaned/posteriors_population.csv
+data/cleaned/posteriors_posthoc_a.csv
+data/cleaned/posteriors_posthoc_h.csv
+data/cleaned/posteriors_treatments.csv
+code/posteriors.csv

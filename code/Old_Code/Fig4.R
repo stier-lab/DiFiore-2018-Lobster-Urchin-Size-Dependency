@@ -1,5 +1,5 @@
 library(here)
-source(here("code", "setup.R"))
+source(here("code", "1_setup.R"))
 
 #-----------------------------------------------------------------------------#
 ## Figure 4                                                                   #

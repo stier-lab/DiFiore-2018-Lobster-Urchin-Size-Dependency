@@ -3,7 +3,7 @@
 ##############################################################################
 library(here)
 source(here("code","setup.R"))
-source(here("code","functions.R"))
+source(here("code","Base_functions/functions.R"))
 
 df <- read.table(here("data/raw","loburc_raw.csv"), header = T, sep = ",")
 

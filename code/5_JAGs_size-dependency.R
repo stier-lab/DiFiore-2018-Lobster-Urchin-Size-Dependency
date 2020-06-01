@@ -1,6 +1,6 @@
 library(here)
-source(here("code", "setup.R"))
-source(here("code", "functions.R"))
+source(here("code", "1_setup.R"))
+source(here("code", "Base_code/functions.R"))
 
 
 #####################################
@@ -9,11 +9,7 @@ source(here("code", "functions.R"))
 
 
 df <- read.table(here("data/cleaned","loburc_cleaned.csv"), header = T, sep = ",") %>%
-  mutate(lobcat = ifelse(size <=70, "small", 
-                         ifelse(size >70 & size <=90, "medium", 
-                                ifelse(size > 90, "large", NA))), 
-         newtreat = as.factor(paste(treatment, lobcat, sep = "-"))) %>%
-  arrange(newtreat, id)
+  arrange(id, treatment)
 
 ##################################################################
 ## the model
@@ -69,35 +65,33 @@ model{
       
       }
 
-
-
 # Piors on variances for all levels
     sigma_int.a ~dunif(0,10)
-    tau_int.a <- 1/(sigma_int.a*sigma_int.a)
-    sigma_int.h ~dunif(0,10)
-    tau_int.h <- 1/(sigma_int.h*sigma_int.h)
-    
-    sigma_t.a ~ dunif(0,10)
-    t.tau.a <- 1/(sigma_t.a*sigma_t.a)
-    sigma_t.h ~ dunif(0,10)
-    t.tau.h <- 1/(sigma_t.h*sigma_t.h)
+                 tau_int.a <- 1/(sigma_int.a*sigma_int.a)
+                 sigma_int.h ~dunif(0,10)
+                 tau_int.h <- 1/(sigma_int.h*sigma_int.h)
+                 
+                 sigma_t.a ~ dunif(0,10)
+                 t.tau.a <- 1/(sigma_t.a*sigma_t.a)
+                 sigma_t.h ~ dunif(0,10)
+                 t.tau.h <- 1/(sigma_t.h*sigma_t.h)
 
 }
-", file = here("code", "heirarchical_jags.txt"))
+", file = here("code", "JAGs_models/heirarchical_jags.txt"))
 
 
 
-model.loc=here("code","heirarchical_jags.txt")
+model.loc=here("code","JAGs_models/heirarchical_jags.txt")
 jags.params=c("a", "h", "t.a", "t.h", "mu.a", "mu.h", 
               "sigma_int.a", "sigma_int.h", "sigma_t.a", "sigma_t.h", 
               "loga", "logh", "t.logit.a", "t.log.h"
               )
 
 
-tind <- distinct(df, newtreat, id) %>%
+tind <- distinct(df, treatment, id) %>%
   arrange(id)
 
-tind <- as.factor(as.vector(tind$newtreat))
+tind <- as.factor(as.vector(tind$treatment))
 
 jags.data = list("initial"= df$initial,
                  "killed" = df$killed,
@@ -106,7 +100,7 @@ jags.data = list("initial"= df$initial,
                  "n" = length(df$initial), 
                  "tind" = tind, 
                  "T" = 48, 
-                 "Ntreats" = length(unique(df$newtreat))
+                 "Ntreats" = length(unique(df$treatment))
 ) # named list
 
 n.chains = 3
@@ -117,9 +111,49 @@ model = R2jags::jags(jags.data,parameters.to.save=jags.params,inits=NULL,
                      model.file=model.loc, n.chains = n.chains, n.burnin=n.burnin,n.thin=n.thin, n.iter=n.iter, DIC=TRUE)
 
 
-# mcmclist <- mcmcplots::as.mcmc.rjags(model)
-# 
-# rstanarm::launch_shinystan(as.shinystan(mcmclist))
+df.treat <- as.mcmc(model) %>%
+  recover_types(df) %>%
+  spread_draws(t.a[treatment], t.h[treatment])
+
+df.ind <- as.mcmc(model) %>%
+  recover_types(df) %>%
+  spread_draws(a[id], h[id])
+
+df.pop <- as.mcmc(model) %>%
+  recover_types(df) %>%
+  spread_draws(mu.a, mu.h)
+
+write.csv(df.pop, here::here("data/cleaned/", "posteriors_population.csv"), row.names = F)
+write.csv(df.treat, here::here("data/cleaned/", "posteriors_treatments.csv"), row.names = F)
+write.csv(df.ind, here::here("data/cleaned/", "posteriors_individuals.csv"), row.names = F)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#------------------------------------------------------------------------
+## Outdated code
+#------------------------------------------------------------------------
+
+
 
 
 a = MCMCsummary(model,params='a', round = 4)
@@ -150,10 +184,10 @@ for(i in 1:46){
 par(d)
 
 
-treats <- levels(df$newtreat)
+treats <- levels(df$treatment)
 d <- par(mfrow = c(3,3), mar = c(4,4, 1,1))
-for(i in 1:9){
-  plot(I(killed/48) ~ jitter(initial),data = df[as.numeric(df$newtreat) == i, ], xlab="Number of prey",ylab="Consumption rate (prey consumed per predator per hour)", ylim = c(0,0.6), main = paste(treats[i]))
+for(i in 1:3){
+  plot(I(killed/48) ~ jitter(initial),data = df[as.numeric(df$treatment) == i, ], xlab="Number of prey",ylab="Consumption rate (prey consumed per predator per hour)", ylim = c(0,0.6), main = paste(treats[i]))
   curve(holling2(x,t.a[i,4],t.h[i,4],P=1,T=1),add=TRUE,col=1,lty=1) #true curve
 }
 par(d)
@@ -313,8 +347,8 @@ dev.off()
 as.mcmc(model) %>%
   spread_draws(a[t.a])
 
-formerge <- distinct(df, treatment, lobcat, newtreat) %>% arrange(newtreat) %>% 
-  mutate(i = as.numeric(newtreat))
+formerge <- distinct(df, treatment,treatment) %>% arrange(treatment) %>% 
+  mutate(i = as.numeric(treatment))
 
 df.plot <- as.mcmc(model) %>%
   spread_draws(t.a[i], t.h[i]) %>%

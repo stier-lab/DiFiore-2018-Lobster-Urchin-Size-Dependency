@@ -1,0 +1,202 @@
+---
+title: "Extrapolation_proposal"
+author: "Bart DiFiore"
+date: "5/5/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, include = F, warning = F, message = F)
+```
+
+Hi Adrian, 
+
+I figured this was easiest to explain with some figures included. Long story short, I think we were overcomplicating the procedure to extrapolate our models built from experiemental data to the observational data. The reason I think this is because (as of right now) we are NOT attempting to describe consumer-resource dynamics. Rather, we are trying to predict consumption rates at discrete time points, based on the *observed* densities and size distributions. Therefore, consumption does not alter density as it would in a dynamical C-R model. First, I'll describe the data that exists. Then, I'll show how I propose using our models built from experimental data to predict on the observational data. Finally, I'll do my best at summarizing how De Roos, Andersen, and others have incorporated body size distributions into systems of dynamical equations. 
+
+## The data
+
+LTER collects data on lobsters in two ways: 1) as part of the annual/quarterly sampling of all species along 40x2 m transects (~2001-2019), and 2) during targeted lobster surveys conducted annually along 4, 60x5 m transects, at each LTER transect at each site (2012-2019). The annual survey data collected along 40x2 m transects is considered to not be representative of lobster densities, therefore I'll focus for now on the targeted lobster survey data. All lobsters are sized to the nearest mm. If size cannot be judged, it is omited from the data sheet and the lobster is included in the density calculation.
+
+Urchin densities are collected in all LTER/LTE reef sampling surveys, within 6 fixed quadrats. A diver will count each urchin in each quadrat. At LTE transects (n = 5 **transects**, not included transects at experimental kelp removals), divers wil size 100 individual purple and 100 individual red urchins. These urchins can be from any search area, but in practice are encounted along the survey transect. If urchin density is high, the diver will bounce to different clumps of urchins so as to better approximate the size distribution along the transect.
+
+This leaves us with the following data: 
+
+1) lobster density: Lobster density is calculated as the number of lobsters encountered / 1200 m2, the area searched. This is collected at the transect level with transects nested within sites. There is a *single* observaiton of lobster density at each transect in each site in each year (2012-2019).
+
+2) urchin density: urchin density is calculated as the number of urchins encountered / 6 m2, the area searched. There is a *single* observation of lobster density at each transect in each site in each year (~2001-2019). 
+
+3) lobster size: size data consists of each individual lobster encountered within the 1200 m2 search grid at each lobster transect. Multiple transects are nested within sites. If lobsters have low density, then the size distribution is limited (i.e. if 2 lobsters were observed, then there are only two lobster sizes)
+
+4) urchin size: size data is collected at *one* transect at 5 sites. It consists of ~ 100 individual observations of urchin sizes. 
+
+As a first pass, I have filtered each of the data sets to consist only of the transects where urchin sizes are collected (the control transects for the LTE experiment). This means that the data set consists of 1 transect at 5 sites from 2012-2019, with observation of a single estimate for urchin and lobster density at each site in each year, and body size distributions for each species at each site in each year.
+
+## Proposed Method
+
+Because we are not modeling a dynamical process (i.e. we are estimating consumption rates based on the observed densities and body size distributions), I believe we can estimate a distribution of potential consumption rates for each individual site/year combination using a sampling procedure. We know from our experimental data that: 
+
+$$
+\begin{align}
+K_{j,k} &= \frac{\alpha_i h_i P_{j,k}}{1 + \alpha_i h_i N_{j, k}}\\
+\alpha_i &= \alpha_0 m^{\beta_{1a}}_{c_i} m^{\beta_{2a}}_{r_i}\\
+h_i &= h_0 m^{\beta_{1h}}_{c_i} m^{\beta_{2h}}_{r_i}\\
+\end{align}
+$$
+
+where $K_{j,k}$ is the predicted number of urchins killed per predator, per unit time, per unit area at site $j$ in year $k$; $N_{j, k}$ is the density of resources at site $j$ in year $k$; $P_{j, k}$ is the density of predators at site $j$ in year $k$; $\alpha_i$ and $h_i$ are a potential attack rate and handling time given draw $i$ from the consumer size distribution ($m_{c_i}$) and the resource size distribution ($m_{r_i}$); and $\alpha_0$, $h_0$, and $\beta_x$ are samples from the posterior distribution of the experimental allometric scaling model. 
+
+To demonstrate this method, I've simulated some data for a single site in a single year and written a function that will calcuate the consumption rate of urchins accoring the previous equation. 
+
+```{r, echo = T, include = T}
+# Generate some sample data for a single hypothetical site in a single year
+
+set.seed(1001)
+urc.size <- rgamma(n = 100, shape = 2, scale = 13) # urchin size distribution
+#urc.size <- rnorm(n = 100, mean = 40, sd = 10)
+#hist(urc.size, breaks = 30)
+
+lob.size <- rnorm(n = 20, mean = 620, sd = 100) # lobster size distribution
+#hist(lob.size)
+
+urc.den <- 3.0 # these are reasonable estimates for lobster and urchin densities
+lob.den <- 2/40
+
+predict.fun <- function(mc, mr, N, P, beta1a, beta2a, beta1h, beta2h, h0, a0, T = 1){
+  a = a0*mc^beta1a*mr^beta2a
+  h = h0*mc^beta1h*mr^beta2h
+  a*N*P*T / (1 + a*h*N)
+  
+}
+
+```
+
+Then I apply the function by sampling from the size distributions and the posteriors:
+
+
+```{r, echo = T, include = T}
+library(tidyverse)
+post.a <- read.csv(here::here("data/cleaned", "posteriors_posthoc_a.csv")) %>%
+  spread(parameter,estimate) %>% filter(model == "model_wpuncert")
+post.h <- read.csv(here::here("data/cleaned", "posteriors_posthoc_h.csv")) %>%
+  spread(parameter,estimate) %>% filter(model == "model_wpuncert")
+
+k <- predict.fun(mc = sample(lob.size, 10000, replace = T), 
+         mr = sample(urc.size, 10000, replace = T), 
+         N = urc.den, 
+         P = lob.den, 
+         beta1a = sample(post.a$beta1, 10000, replace = T), 
+         beta2a = sample(post.a$beta2, 10000, replace = T), 
+         a0 = exp(sample(post.a$alpha, 10000, replace = T)),
+         beta1h = sample(post.h$beta1, 10000, replace = T), 
+         beta2h = sample(post.h$beta2, 10000, replace = T), 
+         h0 = exp(sample(post.h$alpha, 10000, replace = T)))
+```
+
+Then I plot the histograms of the urchin and lobster body size distributions along with our predition for the distribution of potential consumption rates at our hypothetical site and timepoint.
+
+```{r, include=T}
+
+#c(bottom, left, top, right)
+d <- par(mfrow = c(2,2), mar = c(4, 4, 1, 1))
+hist(urc.size, breaks = 30, main = "", xlab = "Urchin sizes")
+hist(lob.size, main = "", xlab = "Lobster sizes")
+hist(k, breaks = 100, main = "", xlab = "Predicted consumption rates")
+par(d)
+
+```
+
+If we agree that this methods is representative, then all that remains to do is to:
+
+1) apply this function to each site/year combination    
+2) visualize how consumption rates change across space and time  
+3) write and run code to compare how this would be different if we only considered a) density or b) the average size of predators and prey (i.e. did we learn anything new).  
+
+## Dynamical C-R equations
+
+I feel as though we have been going around in circles understanding how body size is incorporated in dynamical models. So I thought I take the opportunity to summarize my reading of the different approaches that exist in the literature. I'm not proposing using any of these methods in this paper, but rather just trying to lay it out so that we can understand the state of the literature. I see three main approaches to incorporating allometric scaling into dynamic C-R models. I've arranged them from the simplest to most complicated:
+
+1) Allometric scaling on the FR-  
+Kalinkat et al. (2013) and Barrios-O'Neil et al. (2016) incorporate allometric scaling equations into L-V style C-R models. These models assume no size structure within populations, just that predators are a certain size, prey are a certain size. Individuals do not grow and the FR parameters only shift across different populations/species. They assume no allometric scaling on any other parameters (e.g. r or K). For example a system of equations utilizing this approach based on our data might be: 
+$$
+\begin{align}
+\frac{d N}{dt}  &= r N (1- \frac{N}{k}) - \frac{a N P}{1 + a h N}\\ 
+\newline
+\frac{d P}{dt} &= \frac{e a N P}{1 + a h N} - m P\\
+\newline
+\alpha &= \alpha_0 m^{\beta_{1a}}_{c} m^{\beta_{2a}}_{r}\
+\newline
+h &= h_0 m^{\beta_{1h}}_{c} m^{\beta_{2h}}_{r}\
+\end{align}
+$$
+If we were to simulate these dynamics, we would have to assume that the body size of different populations of lobsters and urchins was constant, but differed (for instance) across space. Hypothetically, we could assume that lobster population were independent of urchins, and simulate $\frac{dN}{dt}$ to see if there were any combinations of lobster and urchin sizes and intial densities that would cause urchin population growth to be zero or negative.
+
+2) Allometric scaling on all C-R parameters-  
+The second approach is really just a more complete version of the first. Rather than model only the allometric scaling of the FR, allometric scaling is incorporated in both $r$ and $k$. Yodzis is the first to have developed this approach (De Roos and Persson 2013 argue that Yodzis is just a special case of a fully size-structured bioenergetics models. See pages 50-53). This approach has been taken up in papers like DeLong et al. (2015), DeLong and Vasseur (2012a,b), and Guzman and Srivastava (2019). Critically, in this models body size is still *only* a parameter (i.e. fixed), versus a dynamic component of the model. For instance, we could extend the previous example to include allometric scaling on $r$ and $k$: 
+$$
+\begin{align}
+\frac{d N}{dt}  &= r N (1- \frac{N}{k}) - \frac{a N P}{1 + a h N}\\ 
+\newline
+\frac{d P}{dt} &= \frac{e a N P}{1 + a h N} - m P\\
+\newline
+\alpha &= \alpha_0 m^{\beta_{1a}}_{c} m^{\beta_{2a}}_{r}\
+\newline
+h &= h_0 m^{\beta_{1h}}_{c} m^{\beta_{2h}}_{r}\
+\newline
+r &= r_0 m^{\beta_{r}}_r\
+\newline
+k &= k_0 m^{\beta_{k}}_r\
+\end{align}
+$$
+
+3) Individual-based models that allow for dynamic size distributions (i.e. that account for ontogentic growth and the allometry of life history parameters) - *(Note: From discussions with Holly its unclear to me if De Roo's models are truely "individual-based models", but he makes that claim in his book)*
+
+      Fully size-structured models are by far the most complex, as they track the ontogenetic growth of all individuals in the population. Life-history parameters (fecundity, consumption, mortality) are each functions of the dynamic size distribution of the population. De Roos and Persson (2013, and citations within) offer the most comprehensive application of these models to C-R dynamics. Andersen (2020) and Blanchard have extended these models to fully size-structured community (or population) models that categorize individuals across species solely by their body size.
+      
+      A full description of these models is way beyond me or my aim here, but I want to summarize a bit about what I understand so far so as to better reference the status of the literature in the paper. The general idea is that individuals grow, reproduce, eat, and die and each of these processes is dependent on resource density (and size-structure, but for now lets just assume that only the consumer is size structured) and the size of the individual. Lets let the size distribution of the consumer population be represented by $c(t,s)$, so that $c(t,s)ds$ represents the number of individuals in a tiny size range $ds$. This means that the number of individuals between sizes $s_1$ and $s_2$ will be: 
+$$
+\int_{s_1}^{s_2} c(t,s) ds
+$$
+
+      Growth, fecundity, consumption, and mortality can all be represented in terms of resource density and the body size distribution $c(t,s)$ (for the full equations see p. 452 in de Roos and Persson 2013). For brevity I'll just describe how population level consumption can be estiamted from the foraging of different sized individuals. Lets let $G(R)$ represent the dynamics of the resource in the absence of consumption, and $I(R,s)$ represent the rate at which an indiviual with body size $s$ feeds on and depletes the resource (i.e the size dependent functional response). Then: 
+$$
+\frac{d R}{dt} = G(R) - \int_{s_b}^{\infty} I(R,s) c(t,s) ds
+$$
+
+      where $s_b$ is the size of an individual at birth. The second term in this ODE represents the total consumption of resources by consumers by integrating across the intake rates of consumers of different body sizes.
+
+      I could imagine incorporating our allometric scaling equation $h = h_0 m^{\beta_{1h}}_{c} m^{\beta_{2h}}_{r}$ into the type II function $I(R,s)$, with the caveat that $I(R,s)$ would also need to incorporate a parameter for resource size.
+    
+## Conclusion
+
+I think the point that I'm trying to make here is that in undertaking this extrapolation to the observational data we are **NOT** modeling a dynamic process. Therefore, the densities of urchins and lobsters are fixed (at a transect, at a site, in a particular year), and prediction is just a matter of sampling across across the posterior estiamtes of the model parameters and the observed size distributions of predators and prey. If we were interested in modeling the dynamics of urchin and lobster density then somewhere between these three methods and levels of complexity I think would be a reasonable route. Based on our conversations, I don't think either of us think this is the right direction for this paper, however.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

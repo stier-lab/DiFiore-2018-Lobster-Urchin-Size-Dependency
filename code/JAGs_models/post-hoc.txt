@@ -1,0 +1,23 @@
+
+
+model{
+
+for(i in 1:n){
+
+x[i] ~ dnorm(udiam[i], 0.01)T(udiam[i]-10, udiam[i]+10)
+x.m[i] <- 0.000592598*x[i]^2.872636198*1.01
+
+y[i] ~ dnorm(mu[i], tauy)
+log(mu[i]) <- alpha + beta1*log(mc[i]) + beta2*log(x.m[i])
+
+}
+
+#priors
+alpha ~ dnorm(0, 0.01)
+beta1 ~ dnorm(0, 0.01)
+beta2 ~ dnorm(0, 0.01)
+sigmay ~ dunif(0,10)
+tauy <- 1/(sigmay*sigmay)
+
+}
+                 

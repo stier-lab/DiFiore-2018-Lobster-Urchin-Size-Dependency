@@ -1,0 +1,39 @@
+
+
+model{
+  
+  # Piors
+
+mu.alpha.a ~ dnorm(exp(-4.5), 0.01)T(0,)
+
+for(i in 1:Nind){
+  alpha.a[i] ~ dnorm(mu.alpha.a, var1)
+}
+  var1 ~ dunif(0, 1)
+  beta1.a ~ dnorm(0, 0.01)
+  beta2.a ~ dnorm(0, 0.01)
+
+mu.alpha.h ~ dnorm(exp(11), 0.01)T(0,)
+
+for(i in 1:Nind){
+  alpha.h[i] ~ dnorm(mu.alpha.h, var2)
+}
+  var2 ~ dunif(0,1)
+  beta1.h ~ dnorm(0, 0.01)
+  beta2.h ~ dnorm(0, 0.01)
+
+
+  # functional response likelihood
+  
+for(i in 1:n){
+
+killed[i] ~ dbin(prob[i],initial[i])
+
+prob[i] <- max(0.0001,min(0.9999,T/(1/(alpha.a[id[i]] * mc[i]^beta1.a * mr[i]^beta2.a) + (alpha.h[id[i]] * mc[i]^beta1.h * mr[i]^beta2.h)*initial[i])))
+
+
+
+}
+  
+  
+}

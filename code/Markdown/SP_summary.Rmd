@@ -1,0 +1,340 @@
+---
+title: "Summary for SP"
+author: "Bart DiFiore"
+date: "4/30/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, include = F)
+```
+
+```{r}
+library(here)
+library(tidybayes)
+library(tidyverse)
+library(ggplot2)
+library(R2jags)
+library(rjags)
+library(MCMCvis)
+library(ggpubr)
+
+```
+
+
+Hi Stephen, 
+
+Here is an overview of the model I've been working on and the modification that I would like to make. The general idea behind this manuscript is to explore how ontogenetic variation in body size influences the stregth of predator prey interactions. We conducted a tank mesocom experiement where we maniputed predator size, prey size, and prey density, to estiamte the effect of allometric scaling on the functional response. The goal is to use our estimates from the tank experiment to predict how interaction strength *might* vary across space and time using observational data collected by PISCO and the LTER. 
+
+In our experiment each of 46 lobsters was randomly assigned to one of three urchin size treatments (small, medium, and large). Each lobster was then fed 6 different densities of their respecitely sized urchins in a series of controlled foraging trials. Here is a summary of the data that I'm using in the model: 
+
+```{r, include=TRUE}
+df <- read.table(here("data/cleaned","loburc_cleaned.csv"), header = T, sep = ",") %>%
+  arrange(id, treatment)
+
+ggplot(df, aes(x = initial, y = killed))+
+  geom_jitter(aes(color = treatment), show.legend = F)+
+  geom_jitter(data = df[df$id %in% c("ML", "HH04", "CR01"), ], aes(x = initial, y = killed), color = "black", shape = 21, size = 3, stroke = 2)+
+  facet_wrap(~treatment)+
+  theme_pubclean()
+
+```
+
+The outlined points represent the data for a separate lobster feeding on each of the size classes of prey across the initial prey densities.
+
+
+For the first stage of the analysis I was interested in fitting a type II functional response to each individual lobster. We chose to do this hiearchically because (1) lobsters foraged at each density (i.e. the data points are not independent), (2) lobsters were nested within treatment size classes of prey, and (3) each lobster had at most 6 estimates of foraging and we wanted to "borrow" data from prior distributions to be able to more accurately predict the functional response of individual lobsters. We are interested in estimating the FR for each lobster because we wanted to explore the form of the relationship between each FR parameter (attack rate and handling time), predator size, and prey size. In order to do this, I have first fit a hiearchical model to the foraging data that estimates the FR at the population, treatment, and individual levels. I then used these esimates of the FR to find the relationship between the FR and body size, using both ML and bayesian approaches. Now what I would like to do is to refit a bayesian model with predator size (rather than predator identity) as a continuous predictor, according to the functional form of the relationship that I uncovered in the second step. I'll try to lay this out step by step with some abbreviated code. My apologies, but I haven't been able to migrate everything over to STAN yet.
+
+So I fit the following model that estiamted the FR parameters at the population, treatment, and individual levels (apologies for any mistakes in the notation):
+
+$$
+\begin{align}
+K_i &\sim {\rm Binomial}(N_i, P_i)\\  
+P_i &= \frac{1}{\alpha_{k,j}^{-1} + h_{k,j}N_i}\\   
+\newline
+
+logit(\alpha) &\sim {\rm Normal}(0,100)\\
+\alpha &= \frac{e^{logit(\alpha)}}{1 + e^{logit(\alpha)}}\\
+log(h) &\sim {\rm Normal}(0,100)\\
+h &= e^{log(h)}\\
+\newline
+
+logit(\alpha_k) &\sim {\rm Normal}(\alpha,\sigma^2_{\alpha-treatment})\\
+\alpha_k &= \frac{e^{logit(\alpha_k)}}{1 + e^{logit(\alpha_k)}}\\
+log(h_k) &\sim Normal(h,\sigma^2_{h-treatment})\\
+h_k &= e^{log(h_k)}\\
+\newline
+
+logit(\alpha_{k,j}) &\sim {\rm Normal}(\alpha_k,\sigma^2_{\alpha-ind})\\
+\alpha_{k,j} &= \frac{e^{logit(\alpha_{k,j})}}{1 + e^{logit(\alpha_{k,j})}}\\
+log(h_{k,j}) &\sim {\rm Normal}(h_k,\sigma^2_{h-ind})\\
+h_{k,j} &= e^{log(h_{k,j})}\\
+\newline
+\newline
+
+\sigma^2_{\alpha-treatment} &~ {\rm Uniform}(0,10)\\
+\sigma^2_{h-treatment} &~ {\rm Uniform}(0,10)\\
+\newline
+
+\sigma^2_{\alpha-ind} &~ {\rm Uniform}(0,10)\\
+\sigma^2_{h-ind} &~ {\rm Uniform}(0,10)\\
+
+\end{align}
+$$
+
+Where $K_i$ is the number of prey killed in trial $i$, $N_i$ is the number of prey offered in trial $i$, $P_i$ is the proportion of prey killed in trial $i$, $\alpha_{k,j}$ is the attack rate of lobster $j$ in treatment $k$, and $h_{k,j}$ is the handling time of lobster $j$ in treatment $k$. The transformations on the priors are necessary as both $\alpha$ and $h$ have to be positive, and $\alpha$ must be less than one. I fit the model in JAGs using the following code: 
+
+```{r, echo =TRUE, include = TRUE}
+jagsscript = cat("
+
+model{
+# PRIORS
+
+  # hyperprior
+  
+      mu.logit.a ~ dnorm(0, 0.01)
+      mu.a <- exp(mu.logit.a)/(1+exp(mu.logit.a))
+  
+      mu.log.h ~ dnorm(0, 0.01)
+      mu.h <- exp(max(min(mu.log.h, 20), -20))
+      
+  
+  
+  # Treatment level piors
+      for(i in 1:Ntreats){
+          #a
+          t.logit.a[i] ~ dnorm(mu.logit.a, t.tau.a)
+          t.a[i] <- exp(t.logit.a[i])/(1+exp(t.logit.a[i]))
+          
+          #h
+          t.log.h[i] ~ dnorm(mu.log.h, t.tau.h)
+          t.h[i] <- exp(max(min(t.log.h[i],20),-20))
+      
+      }
+  
+  
+  # Individual level piors
+      for(i in 1:num.ind){
+          
+          # a
+          loga[i] ~ dnorm(t.logit.a[tind[i]], tau_int.a)
+          a[i] <- exp(loga[i])/(1+exp(loga[i]))
+          
+          # h
+          logh[i] ~ dnorm(t.log.h[tind[i]], tau_int.h)
+          h[i] <- exp(max(min(logh[i],10),-20))
+      }
+
+# functional response likelihood
+
+      for(i in 1:n){
+      
+          prob[i] <- max(0.0001,min(0.9999,T/(1/a[id[i]] + h[id[i]]*initial[i])))
+          
+          killed[i] ~ dbin(prob[i],initial[i])
+      
+      }
+
+# Piors on variances for all levels
+    sigma_int.a ~dunif(0,10)
+                 tau_int.a <- 1/(sigma_int.a*sigma_int.a)
+                 sigma_int.h ~dunif(0,10)
+                 tau_int.h <- 1/(sigma_int.h*sigma_int.h)
+                 
+                 sigma_t.a ~ dunif(0,10)
+                 t.tau.a <- 1/(sigma_t.a*sigma_t.a)
+                 sigma_t.h ~ dunif(0,10)
+                 t.tau.h <- 1/(sigma_t.h*sigma_t.h)
+
+}
+", file = here("code", "heirarchical_jags.txt"))
+```
+
+In my best estimation, the model seems to converge reasonable well judging by the rhat values and the chain mixing (at least in the log or logit space). I've included plots of the $\alpha$ and $h$ chains below:
+
+
+```{r, include=T}
+model.loc=here("code","heirarchical_jags.txt")
+jags.params=c("a", "h", "t.a", "t.h", "mu.a", "mu.h", 
+              "sigma_int.a", "sigma_int.h", "sigma_t.a", "sigma_t.h", 
+              "loga", "logh", "t.logit.a", "t.log.h", "mu.logit.a", "mu.log.h"
+              )
+
+
+tind <- distinct(df, treatment, id) %>%
+  arrange(id)
+
+tind <- as.factor(as.vector(tind$treatment))
+
+jags.data = list("initial"= df$initial,
+                 "killed" = df$killed,
+                 "id" = df$id,
+                 "num.ind" = length(unique(df$id)),
+                 "n" = length(df$initial), 
+                 "tind" = tind, 
+                 "T" = 48, 
+                 "Ntreats" = length(unique(df$treatment))
+) # named list
+
+n.chains = 3
+n.burnin = 10000
+n.thin = 2
+n.iter = 25000
+model = R2jags::jags(jags.data,parameters.to.save=jags.params,inits=NULL,
+                     model.file=model.loc, n.chains = n.chains, n.burnin=n.burnin,n.thin=n.thin, n.iter=n.iter, DIC=TRUE)
+
+MCMCtrace(model, params = c("mu.a", "mu.h", "mu.logit.a", "mu.log.h"), pdf = FALSE)
+
+
+```
+
+
+So the next step in the analysis was to use the posterior estimates of the FR to explore the relationship between $\alpha$, $h$, lobster body size (g), and urchin body size (g, taken at the center of the size class bin). I did much of this work using ML, because it was so much faster to compare different hypothetical forms of the relationship presented in the literature. Long story short, it appears that there is little relationship between $\alpha$ and body size of either predator or prey, BUT $h = h_0M_l^{\beta_1}M_u^{\beta_2}$, where $M_l$ is the mass of the lobster and $M_u$ is average urchin mass that the lobster foraged on. Using this functional form of the relationship I sampled from the posterior estimates of the $h$ parameter from the first model and estimated the $h_0$, $\beta_1$, and $\beta_2$ parameters. The code for that model is below (NOTE: I've commented out the call to run the model because of the run time.). 
+
+```{r}
+meta <- read.csv(here::here("data/", "lob-metadata.csv"))
+d2 <- read.csv(here::here("data/cleaned", "posteriors_individuals.csv")) %>% 
+  left_join(meta) %>%
+  group_by(id) %>%
+  sample_draws(500) %>%
+  filter(id != "N07")
+
+```
+
+```{r, echo = TRUE, include=TRUE}
+jagsscript = cat("
+                 
+                 model{
+                 
+                 for(i in 1:n){
+                 
+                 y[i] ~ dnorm(mu[i], tauy)
+                 mu[i] <- alpha + beta1*mc[i] + beta2*mr[i]
+                 
+                 }
+                 
+                 #priors
+                 alpha ~ dnorm(0, 0.01)
+                 beta1 ~ dnorm(0, 0.01)
+                 beta2 ~ dnorm(0, 0.01)
+                 sigmay ~ dunif(0,10)
+                 tauy <- 1/(sigmay*sigmay)
+                 
+                 }
+                 ", file = here("code", "post-hoc_wparameteruncertainty.txt"))
+
+```
+
+```{r}
+model.loc=here("code","post-hoc_wparameteruncertainty.txt")
+jags.params=c("alpha", "beta1", "beta2")
+
+
+jags.data = list("y" = log(d2$h),
+                 "mc" = log(d2$mc), 
+                 "mr" = log(d2$mr),
+                 "n" = length(d2$id)
+) # named list
+
+n.chains = 3
+n.burnin = 10000
+n.thin = 3
+n.iter = 30000
+# model_wpuncert = R2jags::jags(jags.data,parameters.to.save=jags.params,inits=NULL,
+#                               model.file=model.loc, n.chains = n.chains, n.burnin=n.burnin,n.thin=n.thin, n.iter=n.iter, DIC=TRUE)
+```
+
+```{r, include = TRUE, warning=FALSE, message=FALSE}
+require(rethinking)
+post.h <- read.csv(here::here("data/cleaned", "posteriors_posthoc_h.csv")) %>%
+  spread(parameter,estimate) %>% filter(model == "model_wpuncert")
+df <- read.csv(here::here("data/cleaned", "posteriors_individuals.csv")) %>% 
+  left_join(meta) %>%
+  filter(id != "N07") %>%
+  group_by(id) %>%
+  sample_draws(500)
+
+
+post_hoc_CI <- function(mr, data, prob = 0.95){
+  temp.mr <- as.numeric(mr)
+mu.link <- function(mc, mr = temp.mr, alpha = data[, "alpha"], beta1 = data[, "beta1"], beta2 = data[, "beta2"]){
+  exp(alpha)*mc^beta1*mr^beta2
+} # defines a function to predict the prey killed at combination of a and h in the posteriors
+
+mc.seq <- seq( from=min(df$mc) , to=max(df$mc) , length.out = 100) # define a sequence of initial densities
+mu <- sapply( mc.seq, mu.link) # apply the mu.link funciton to each N in the sequence
+
+mu.median <- apply( mu , 2 , median ) # calculate the median predicted value for each N
+mu.PI <- t(apply( mu , 2 , PI , prob=prob )) # calculate the credible interval for each value of N
+
+return(data.frame(mc.seq = mc.seq, mu = mu.median, mu.lower = mu.PI[,1], mu.upper = mu.PI[,2]))
+}
+
+
+forplot <- rbind(post_hoc_CI(mr = unique(df$mr)[1], data = post.h), post_hoc_CI(mr = unique(df$mr)[2], data = post.h), post_hoc_CI(mr = unique(df$mr)[3], data = post.h))
+forplot$mr <- rep(unique(df$mr), each = 100)
+forplot$treatment <- rep(unique(df$treatment), each = 100)
+
+sum.forplot <- df %>% ungroup() %>% group_by(mc, treatment) %>%
+median_qi(h, .width = c(0.75))
+
+
+ggplot(df, aes(x = mc, y = h))+
+  geom_jitter(aes(color = treatment), shape = 1)+
+  geom_pointinterval(data = sum.forplot, aes(x = mc, y = h), color = "gray", fill = "black")+
+  geom_point(data = sum.forplot, aes(x = mc, y = h), color = "black")+
+  geom_line(data = forplot, aes(x = mc.seq, y = mu))+
+  scale_y_log10()+
+  facet_wrap(~treatment)
+
+```
+
+
+The problem I'm having is that what I want to be able to do is to predict the consumption rate (i.e. number of urchins killed) by any sized lobster foraging on any sized urchin (within the range of sizes that we experimentally manipulated). I can do this from the second model BUT I think I'm not correctly dealing with the uncertainty, as the second model doesn't really account for the variance in the raw data, only the variance in the parameter esimates from the first model. One of the ideas I have is to try to integrate the equation that I estimated in model two into the functional response equation and directly estimate $h_0$, $\beta_1$, and $\beta_2$ from the data. But I'm stumpted on how to account for the structure in the data, and how to efficiently sample across different combinations of the parameter's priors so that $P_i$ is between [0,1]. My end goal is to be able to take observational data on lobster and urchin densities and body size distrubtions in order to predict *relative* (not absolute) consumption rates. Then, I want to explore the consequences of skewed body size distrubtions on estimates of interaction strength relative to estimates that ignore size structure or estimates that only incorporate the mean body size of predator and prey at a site. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

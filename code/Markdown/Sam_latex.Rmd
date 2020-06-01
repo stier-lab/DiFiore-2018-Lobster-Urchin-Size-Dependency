@@ -1,0 +1,45 @@
+---
+title: "forsam"
+author: "Bart DiFiore"
+date: "5/1/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+$$
+\begin{align}
+K_i &\sim {\rm Binomial}(N_i, P_i)\\  
+P_i &= \frac{1}{\alpha_{k,j}^{-1} + h_{k,j}N_i}\\   
+\newline
+
+logit(\alpha) &\sim {\rm Normal}(0,100)\\
+\alpha &= \frac{e^{logit(\alpha)}}{1 + e^{logit(\alpha)}}\\
+log(h) &\sim {\rm Normal}(0,100)\\
+h &= e^{log(h)}\\
+\newline
+
+logit(\alpha_k) &\sim {\rm Normal}(\alpha,\sigma^2_{\alpha-treatment})\\
+\alpha_k &= \frac{e^{logit(\alpha_k)}}{1 + e^{logit(\alpha_k)}}\\
+log(h_k) &\sim Normal(h,\sigma^2_{h-treatment})\\
+h_k &= e^{log(h_k)}\\
+\newline
+
+logit(\alpha_{k,j}) &\sim {\rm Normal}(\alpha_k,\sigma^2_{\alpha-ind})\\
+\alpha_{k,j} &= \frac{e^{logit(\alpha_{k,j})}}{1 + e^{logit(\alpha_{k,j})}}\\
+log(h_{k,j}) &\sim {\rm Normal}(h_k,\sigma^2_{h-ind})\\
+h_{k,j} &= e^{log(h_{k,j})}\\
+\newline
+\newline
+
+\sigma^2_{\alpha-treatment} &~ {\rm Uniform}(0,10)\\
+\sigma^2_{h-treatment} &~ {\rm Uniform}(0,10)\\
+\newline
+
+\sigma^2_{\alpha-ind} &~ {\rm Uniform}(0,10)\\
+\sigma^2_{h-ind} &~ {\rm Uniform}(0,10)\\
+
+\end{align}
+$$

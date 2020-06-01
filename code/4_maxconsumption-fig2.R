@@ -1,5 +1,5 @@
 library(here)
-source(here("code", "setup.r"))
+source(here("code", "1_setup.R"))
 
 #--------------------------------------------------------------------------------
 ## Figure on max consumption
