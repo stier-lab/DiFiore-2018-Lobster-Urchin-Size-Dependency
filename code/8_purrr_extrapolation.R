@@ -2,8 +2,8 @@
 ## Predicted size-dependent consumption rates
 #-------------------------------------------------------------------------------------------
 library(here)
-source(here("code", "Functions.R"))
-source(here("code", "setup.R"))
+source(here("code", "Base_functions/Functions.R"))
+source(here("code", "1_setup.R"))
 
 # get the lte urchin size data
 

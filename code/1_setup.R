@@ -20,3 +20,4 @@ library(purrr)
 library(ggridges)
 
 
+set.seed(112618)

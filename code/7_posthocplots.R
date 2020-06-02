@@ -1,38 +1,42 @@
+#-------------------------------------------
+## Setup
+#-------------------------------------------
 
+library(here)
+source(here("code", "Base_functions/Functions.R"))
+source(here("code", "1_setup.R"))
 
-post.a <- read.csv(here::here("data/cleaned", "posteriors_posthoc_a.csv")) %>%
+#-------------------------------------------
+## Get data
+#-------------------------------------------
+
+post.a <- read.csv(here::here("data/cleaned/posteriors", "posteriors_posthoc_a.csv")) %>%
   spread(parameter,estimate) %>% filter(model == "model_wpuncert")
-post.h <- read.csv(here::here("data/cleaned", "posteriors_posthoc_h.csv")) %>%
+post.h <- read.csv(here::here("data/cleaned/posteriors", "posteriors_posthoc_h.csv")) %>%
   spread(parameter,estimate) %>% filter(model == "model_wpuncert")
+
+post.null <- read.csv(here::here("data/cleaned/posteriors", "posteriors_null.csv")) %>%
+  median_qi()
+post.mu <- read.csv(here::here("data/cleaned/posteriors", "posteriors_population.csv")) %>%
+  median_qi()
 
 meta <- read.csv(here::here("data/", "lob-metadata.csv"))
-df <- read.csv(here::here("data/cleaned", "posteriors_individuals.csv")) %>% 
+
+df <- read.csv(here::here("data/cleaned/posteriors", "posteriors_individuals.csv")) %>% 
   left_join(meta) %>%
   filter(id != "N07") %>%
   group_by(id) %>%
   sample_draws(500)
 
 
-temp <- calculate.CI(mr = mean(df$mr), mc = mean(df$mc), alpha.h = post.h$alpha, alpha.a = post.a$alpha, beta1.h = post.h$beta1, beta1.a = post.a$beta1, beta2.h = post.h$beta2, beta2.a = post.h$beta2)
 
-ggplot(temp, aes(x = N.seq, y = mu))+
-  geom_point()
-
-ggplot(df, aes( x = initial, y = killed))+
-  geom_jitter()+
-  geom_line(data = temp, aes(x = N.seq, y = mu*48))
-
-
-
-
-
-post_hoc_CI <- function(mr, data){
+post_hoc_CI <- function(mr, data, prob = 0.95){
   temp.mr <- as.numeric(mr)
 mu.link <- function(mc, mr = temp.mr, alpha = data[, "alpha"], beta1 = data[, "beta1"], beta2 = data[, "beta2"]){
   exp(alpha)*mc^beta1*mr^beta2
 } # defines a function to predict the prey killed at combination of a and h in the posteriors
 
-mc.seq <- seq( from=min(df$mc) , to=max(df$mc) , length.out = 100) # define a sequence of initial densities
+mc.seq <- seq( from=min(df$mc) , to=max(df$mc) , length.out = 100) #define a sequence of consumer masses
 mu <- sapply( mc.seq, mu.link) # apply the mu.link funciton to each N in the sequence
 
 mu.median <- apply( mu , 2 , median ) # calculate the median predicted value for each N
@@ -55,6 +59,13 @@ ggplot(df, aes(x = mc, y = h))+
   geom_pointinterval(data = sum.forplot, aes(x = mc, y = h), color = "gray", fill = "black")+
   geom_point(data = sum.forplot, aes(x = mc, y = h), color = "black")+
   geom_line(data = forplot, aes(x = mc.seq, y = mu))+
+  # Add in the unstructured and mu expectations!
+  geom_hline(data = post.null, aes(yintercept = h), color = "gray", linetype = "dashed")+
+  geom_hline(data = post.null, aes(yintercept = h.lower), color = "gray", linetype = "dashed") +
+  geom_hline(data = post.null, aes(yintercept = h.upper), color = "gray", linetype = "dashed") +
+  geom_hline(data = post.mu, aes(yintercept = mu.h), color = "gray")+
+  geom_hline(data = post.mu, aes(yintercept = mu.h.lower), color = "gray")+
+  geom_hline(data = post.mu, aes(yintercept = mu.h.upper), color = "gray")+
   scale_y_log10()+
   facet_wrap(~treatment)
 

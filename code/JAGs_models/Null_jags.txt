@@ -1,0 +1,30 @@
+
+                 
+                 model{
+                 # PRIORS
+                 
+                 logit.a ~ dnorm(0, 0.01)
+                 a <- exp(logit.a)/(1+exp(logit.a))
+                 
+                 log.h ~ dnorm(0, 0.01)
+                 h <- exp(max(min(log.h, 20), -20))
+
+                 # sigma_a ~ dunif(0,10)
+                 # t.tau.a <- 1/(sigma_a*sigma_a)
+                 # sigma_h ~ dunif(0,10)
+                 # t.tau.h <- 1/(sigma_h*sigma_h)
+                 
+                 
+                 # FUNCTIONAL RESPONSE LIKELIHOOD
+                 
+                 for(i in 1:n){
+                 
+                 prob[i] <- max(0.0001,min(0.9999,T/(1/a + h*initial[i])))
+                 
+                 killed[i] ~ dbin(prob[i],initial[i])
+                 
+                 }
+                 
+                 
+                 }
+                 

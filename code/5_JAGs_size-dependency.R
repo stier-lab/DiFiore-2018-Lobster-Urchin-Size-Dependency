@@ -123,9 +123,9 @@ df.pop <- as.mcmc(model) %>%
   recover_types(df) %>%
   spread_draws(mu.a, mu.h)
 
-write.csv(df.pop, here::here("data/cleaned/", "posteriors_population.csv"), row.names = F)
-write.csv(df.treat, here::here("data/cleaned/", "posteriors_treatments.csv"), row.names = F)
-write.csv(df.ind, here::here("data/cleaned/", "posteriors_individuals.csv"), row.names = F)
+write.csv(df.pop, here::here("data/cleaned/posteriors", "posteriors_population.csv"), row.names = F)
+write.csv(df.treat, here::here("data/cleaned/posteriors", "posteriors_treatments.csv"), row.names = F)
+write.csv(df.ind, here::here("data/cleaned/posteriors", "posteriors_individuals.csv"), row.names = F)
 
 
 

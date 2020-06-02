@@ -1,12 +1,20 @@
+#-------------------------------------------
+## Setup
+#-------------------------------------------
+
+library(here)
+source(here("code", "Base_functions/Functions.R"))
+source(here("code", "1_setup.R"))
+
+#-------------------------------------------
+## Get data
+#-------------------------------------------
+
 meta <- read.csv(here::here("data/", "lob-metadata.csv"))
 df <- read.csv(here::here("data/cleaned", "posteriors_individuals.csv")) %>% 
   left_join(meta) %>%
   filter(id != "N07")
 
-
-ggplot(df, aes(x = log(mc), y = log(h)))+
-  geom_point()+
-  facet_wrap(~treatment)
 
 
 ltow <- function(udiam){0.000592598*udiam^2.872636198*1.01}
