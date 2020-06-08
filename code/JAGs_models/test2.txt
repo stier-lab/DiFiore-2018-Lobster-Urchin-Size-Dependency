@@ -4,35 +4,40 @@ model{
   
   # Piors
 
-mu.alpha.a ~ dnorm(exp(-4.5), 0.01)T(0,)
+mu.alpha.a ~ dnorm(-4.5, 1)
 
 for(i in 1:Nind){
-  alpha.a[i] ~ dnorm(mu.alpha.a, var1)
+alpha.a[i] ~ dnorm(mu.alpha.a, var5)
 }
-  var1 ~ dunif(0, 1)
-  beta1.a ~ dnorm(0, 0.01)
-  beta2.a ~ dnorm(0, 0.01)
+  var5 ~ dunif(0.5,2)
+  beta1.a ~ dnorm(0, 1)
+  beta2.a ~ dnorm(0, 1)
 
-mu.alpha.h ~ dnorm(exp(11), 0.01)T(0,)
+mu.alpha.h ~ dnorm(11, var1)
+var1 ~ dunif(0,10)
 
 for(i in 1:Nind){
   alpha.h[i] ~ dnorm(mu.alpha.h, var2)
 }
-  var2 ~ dunif(0,1)
-  beta1.h ~ dnorm(0, 0.01)
-  beta2.h ~ dnorm(0, 0.01)
+  var2 ~ dunif(0,10)
+  beta1.h ~ dnorm(0, var3)
+  var3 ~ dunif(0,10)
+  beta2.h ~ dnorm(0, var4)
+  var4 ~ dunif(0,10)
+
+  
 
 
   # functional response likelihood
   
+for(i in 1:Nind){
+log(a[i]) <- alpha.a[i] + beta1.a*log(mc[i]) + beta2.a*log(mr[i]) 
+log(h[i]) <- alpha.h[i] + beta1.h*log(mc[i]) + beta2.h*log(mr[i]) 
+}
+
 for(i in 1:n){
-
 killed[i] ~ dbin(prob[i],initial[i])
-
-prob[i] <- max(0.0001,min(0.9999,T/(1/(alpha.a[id[i]] * mc[i]^beta1.a * mr[i]^beta2.a) + (alpha.h[id[i]] * mc[i]^beta1.h * mr[i]^beta2.h)*initial[i])))
-
-
-
+prob[i] <- max(0.0001,min(0.9999,T/(1/a[id[i]] + h[id[i]]*initial[i])))
 }
   
   

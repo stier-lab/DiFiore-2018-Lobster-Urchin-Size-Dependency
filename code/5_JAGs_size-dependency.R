@@ -104,9 +104,9 @@ jags.data = list("initial"= df$initial,
 ) # named list
 
 n.chains = 3
-n.burnin = 10000
-n.thin = 2
-n.iter = 25000
+n.burnin = 250000
+n.thin = 10
+n.iter = 500000
 model = R2jags::jags(jags.data,parameters.to.save=jags.params,inits=NULL,
                      model.file=model.loc, n.chains = n.chains, n.burnin=n.burnin,n.thin=n.thin, n.iter=n.iter, DIC=TRUE)
 

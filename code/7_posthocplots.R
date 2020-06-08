@@ -49,23 +49,42 @@ return(data.frame(mc.seq = mc.seq, mu = mu.median, mu.lower = mu.PI[,1], mu.uppe
 forplot <- rbind(post_hoc_CI(mr = unique(df$mr)[1], data = post.h), post_hoc_CI(mr = unique(df$mr)[2], data = post.h), post_hoc_CI(mr = unique(df$mr)[3], data = post.h))
 forplot$mr <- rep(unique(df$mr), each = 100)
 forplot$treatment <- rep(unique(df$treatment), each = 100)
+names(forplot)[1:2] <- c("mc", "h")
 
 sum.forplot <- df %>% ungroup() %>% group_by(mc, treatment) %>%
 median_qi(h, .width = c(0.75))
 
+# What is the expectation for an average sized lobster foraging on an average sized prey?
+
+mean.lob = df %>% group_by(treatment) %>% summarize(mean = mean(mc))
+mean.urc = df %>% group_by(treatment) %>% summarize(mean = mean(mr))
+
+
+
+f_x.bar = df %>% group_by(treatment) %>%
+  summarize(mean.lob = mean(mc),
+         mean.urc = mean(mr)) %>%
+  mutate(f_x.bar = exp(mean(post.h$alpha))*mean.lob^mean(post.h$beta1)*mean.urc^mean(post.h$beta2))
+  
+
+#f_x.bar <- mean(exp(post.h$alpha)*mean.lob^post.h$beta1*mean.urc^post.h$beta2)
+
+mean.f_x <- forplot %>% group_by(treatment) %>% summarize(mean.f_x = mean(h))
+
 
 ggplot(df, aes(x = mc, y = h))+
-  geom_jitter(aes(color = treatment), shape = 1)+
+  geom_jitter(aes(color = treatment), shape = 1, alpha = 0.5)+
   geom_pointinterval(data = sum.forplot, aes(x = mc, y = h), color = "gray", fill = "black")+
   geom_point(data = sum.forplot, aes(x = mc, y = h), color = "black")+
-  geom_line(data = forplot, aes(x = mc.seq, y = mu))+
+  geom_line(data = forplot, aes(x = mc, y = h))+
+  geom_ribbon(data = forplot, aes(ymin = mu.lower, ymax = mu.upper), fill = "gray", alpha = 0.5)+
   # Add in the unstructured and mu expectations!
-  geom_hline(data = post.null, aes(yintercept = h), color = "gray", linetype = "dashed")+
-  geom_hline(data = post.null, aes(yintercept = h.lower), color = "gray", linetype = "dashed") +
-  geom_hline(data = post.null, aes(yintercept = h.upper), color = "gray", linetype = "dashed") +
-  geom_hline(data = post.mu, aes(yintercept = mu.h), color = "gray")+
-  geom_hline(data = post.mu, aes(yintercept = mu.h.lower), color = "gray")+
-  geom_hline(data = post.mu, aes(yintercept = mu.h.upper), color = "gray")+
+  # geom_hline(data = post.null, aes(yintercept = h), color = "gray", linetype = "dashed")+
+  # geom_hline(data = post.null, aes(yintercept = h.lower), color = "gray", linetype = "dashed") +
+  # geom_hline(data = post.null, aes(yintercept = h.upper), color = "gray", linetype = "dashed") +
+  # geom_hline(data = post.mu, aes(yintercept = mu.h), color = "gray")+
+  # geom_hline(data = post.mu, aes(yintercept = mu.h.lower), color = "gray")+
+  # geom_hline(data = post.mu, aes(yintercept = mu.h.upper), color = "gray")+
   scale_y_log10()+
   facet_wrap(~treatment)
 
@@ -139,14 +158,27 @@ ggplot(ob, aes(x = initial, y = killed/48))+
 
 
 
+x = 1:100
+y = 1.5*x + 3
+y = x^0.75
+y2 = x^1.9
+y3 = x^-1.9
+plot(y ~ x)
+plot(y2 ~ x)
+plot(y3 ~ x)
+plot(log(y3) ~ x)
+plot(log(y3) ~ log(x))
+plot(y2 ~ log(x))
 
 
+plot(y ~ log(x))
 
-
-
-
-
-
+x = 1:100
+y = 1.5*x + 3
+temp <- as.data.frame(x = x, y = y)
+ggplot(temp, aes(x =x, y =y))+
+  geom_point()+
+  scale_x_log10()
 
 
 

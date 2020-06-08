@@ -5,9 +5,5 @@
 .Ruserdata
 
 # Ignore large files
-data/cleaned/posteriors_individuals.csv
-data/cleaned/posteriors_population.csv
-data/cleaned/posteriors_posthoc_a.csv
-data/cleaned/posteriors_posthoc_h.csv
-data/cleaned/posteriors_treatments.csv
+data/cleaned/posteriors
 code/posteriors.csv

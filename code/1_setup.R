@@ -18,6 +18,7 @@ library(lme4)
 library(lmerTest)
 library(purrr)
 library(ggridges)
+library(rethinking)
 
 
 set.seed(112618)
