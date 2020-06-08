@@ -5,6 +5,5 @@
 .Ruserdata
 
 # Ignore large files
-data/cleaned/posteriors/
-code/posteriors.csv
+/data/cleaned/posteriors/
 
