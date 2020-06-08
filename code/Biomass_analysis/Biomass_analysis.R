@@ -1,6 +1,6 @@
 library(here)
-source(here("code", "setup.R"))
-source(here("code", "functions.R"))
+source(here("code", "1_setup.R"))
+source(here("code", "Base_functions/functions.R"))
 
 
 #####################################
@@ -35,7 +35,7 @@ anova(mod2, mod)
 
 
 pframe <- expand.grid(treatment = unique(df$treatment), mc = seq(min(mf$mc, na.rm =T), max(mf$mc, na.rm =T), length.out = 100))
-pp <- predict(mod, newdata = newdat, se.fit = T)
+pp <- predict(mod, newdata = pframe, se.fit = T)
 
 
 linkinv <- family(mod)$linkinv ## inverse-link function
