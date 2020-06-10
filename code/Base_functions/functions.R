@@ -410,3 +410,20 @@ inverse.logit <- function(x){
 }
 
 
+
+# CI function
+
+post_hoc_CI <- function(mr, data, prob = 0.95){
+  temp.mr <- as.numeric(mr)
+  mu.link <- function(mc, mr = temp.mr, alpha = data[, "alpha"], beta1 = data[, "beta1"], beta2 = data[, "beta2"]){
+    exp(alpha)*mc^beta1*mr^beta2
+  } # defines a function to predict the prey killed at combination of a and h in the posteriors
+  
+  mc.seq <- seq( from=min(df$mc) , to=max(df$mc) , length.out = 100) #define a sequence of consumer masses
+  mu <- sapply( mc.seq, mu.link) # apply the mu.link funciton to each N in the sequence
+  
+  mu.median <- apply( mu , 2 , median ) # calculate the median predicted value for each N
+  mu.PI <- t(apply( mu , 2 , PI , prob=prob )) # calculate the credible interval for each value of N
+  
+  return(data.frame(mc.seq = mc.seq, mu = mu.median, mu.lower = mu.PI[,1], mu.upper = mu.PI[,2]))
+}

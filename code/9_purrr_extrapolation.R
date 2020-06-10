@@ -107,43 +107,30 @@ df.a <- bind_rows(urc.a, lob.a) %>% select(year, site, sp_code, biomass) %>%
 s <- left_join(lob.s, urc.s) %>%
   left_join(df.a) %>%
   mutate(id = paste(year, site, sep = "-"))
+
 #-----------------------------------------------------------------
-## 
+## Simulation function
 #-----------------------------------------------------------------
 
-post.a <- read.csv(here::here("data/cleaned", "posteriors_posthoc_a.csv")) %>%
-  spread(parameter,estimate) %>% filter(model == "model_wpuncert")
-post.h <- read.csv(here::here("data/cleaned", "posteriors_posthoc_h.csv")) %>%
-  spread(parameter,estimate) %>% filter(model == "model_wpuncert")
+post <- read.csv(here::here("data/cleaned/posteriors", "allometric_population.csv"
+)) %>% as_tibble() %>% sample_draws(10000)
 
-beta1a = sample(post.a$beta1, 10000, replace = T)
-beta2a = sample(post.a$beta2, 10000, replace = T)
-beta1h = sample(post.h$beta1, 10000, replace = T)
-beta2h = sample(post.h$beta2, 10000, replace = T)
-h0 = exp(sample(post.h$alpha, 10000, replace = T))
-a0 = exp(sample(post.a$alpha, 10000, replace = T))
+# beta1a = sample(post$beta1, 10000, replace = T)
+# beta2a = sample(post.a$beta2, 10000, replace = T)
+# beta1h = sample(post.h$beta1, 10000, replace = T)
+# beta2h = sample(post.h$beta2, 10000, replace = T)
+# h0 = exp(sample(post.h$alpha, 10000, replace = T))
+# a0 = exp(sample(post.a$alpha, 10000, replace = T))
 
-predict.fun <- function(lob.samples, urc.samples, urc.a, lob.a, beta1a. = beta1a, beta2a. = beta2a, beta1h. = beta1h, beta2h. = beta2h, h0. = h0, a0. = a0, T = 1, ...){
+predict.fun <- function(lob.samples, urc.samples, urc.a, lob.a, beta1a. = post$beta1.a, beta2a. = post$beta2.a, beta1h. = post$beta1.h, beta2h. = post$beta2.h, h0. = post$mu.alpha.h, a0. = post$mu.alpha.a, T = 1, ...){
   
-  a = a0.*lob.samples^beta1a.*urc.samples^beta2a.
-  h = h0.*lob.samples^beta1h.*urc.samples^beta2h.
+  loga <- a0. + beta1a.*log(lob.samples) + beta2a.*log(urc.samples)
+  logh <- h0. + beta1h.*log(lob.samples) + beta2h.*log(urc.samples)
+  a <- exp(loga)
+  h <- exp(logh)
   a*urc.a*lob.a*T / (1 + a*h*urc.a)
   
 }
-
-
-
-# k <- predict.fun(mc = sample(lob.size, 10000, replace = T), 
-#                  mr = sample(urc.size, 10000, replace = T), 
-#                  N = urc.den, 
-#                  P = lob.den, 
-#                  beta1a = sample(post.a$beta1, 10000, replace = T), 
-#                  beta2a = sample(post.a$beta2, 10000, replace = T), 
-#                  a0 = exp(sample(post.a$alpha, 10000, replace = T)),
-#                  beta1h = sample(post.h$beta1, 10000, replace = T), 
-#                  beta2h = sample(post.h$beta2, 10000, replace = T), 
-#                  h0 = exp(sample(post.h$alpha, 10000, replace = T)))
-
 
 names <- s %>% mutate(id = paste(year, site, sep = "-")) %>%
   ungroup() %>%
@@ -162,10 +149,10 @@ t <- s %>%
   as_tibble() %>%
   gather(id, prediction)
   
-t %>%
-  ggplot()+
-  geom_histogram(aes(x = prediction))+
-  facet_wrap(~id, scales = "free")
+# t %>%
+#   ggplot()+
+#   geom_histogram(aes(x = prediction))+
+#   facet_wrap(~id, scales = "free")
 
 t %>%
   separate(id, into = c("year", "site"), sep = "-") %>%
@@ -188,14 +175,37 @@ t %>%
 
 # Ok, we know that interaction strengths can vary, and that body size is one of the reasons that interaction strengths vary. Furthermore, we know that most discussion of interaction strengths is focused at the interspecfic variation in body size, but there is considerable intra-specific variation of body size that can alter how strongly two species interact. I'm interested in how different our estimates of interaction strength are if you ignore intraspecific variation in body size, compared to if you incorporate intraspecific variation. Furthermore, most body size distributions are skewed (i.e. non-normal), so how would our predictions differ for real populations?
 
-# No body size dependence (need to fit this model to compare with)
+# No body size dependence
 # Body size dependence, population mean sizes
-# Body size dependence, normally-distributed body size distributions
-# Body size dependence, skewed-body size distributions
 # Body size dependence, observed body size distributions.
 
+#-------------------------------
+# No body size dependence
+#-------------------------------
 
-# Predicted consumption based only on the mean body size at each site/year
+df.null <- read.csv(here::here("data/cleaned/posteriors", "posteriors_null.csv")) %>% as_tibble() %>% sample_draws(10000)
+
+predict.FR <- function(urc.a, lob.a, a = df.null$a, h = df.null$h, ...){
+  a*urc.a*lob.a/(1 + a*h*urc.a)
+}
+
+null <- s %>%
+  group_by(year, site) %>%
+  purrr::pmap(predict.FR)%>% 
+  set_names(names) %>%
+  as_tibble() %>%
+  gather(id, prediction) %>%
+  separate(id, into = c("year", "site"), sep = "[-]") %>%
+  mutate(estimate = "null")
+
+ggplot(null)+
+  ggridges::geom_density_ridges(aes(x = prediction, y = as.factor(year)), rel_min_height = 0.001)+
+  facet_wrap(~site, scales = "free")
+  coord_cartesian(xlim = c(0, 1))
+
+#--------------------------------
+## Mean allometric scaling
+#--------------------------------
 
 mu <- s %>%
   group_by(year, site) %>%
@@ -204,13 +214,78 @@ mu <- s %>%
   purrr::pmap(predict.fun)%>% 
   set_names(names) %>%
   as_tibble() %>%
-  gather(id, predict.mu)
+  gather(id, prediction) %>%
+  separate(id, into = c("year", "site"), sep = "[-]") %>%
+    mutate(estimate = "mu")
+  
            
-mu %>%
-  ggplot()+
-  geom_histogram(aes(x = predict.mu))+
-  facet_wrap(~id, scales = "free")         
+ggplot(mu)+
+  ggridges::geom_density_ridges(aes(x = prediction, y = as.factor(year)), rel_min_height = 0.001)+
+  facet_wrap(~site, scales = "free")
          
+
+
+#------------------------------------------------------------------------
+## Allometric scaling conditional on observed body size distributions
+#------------------------------------------------------------------------
+
+
+full <- s %>%
+  group_by(year, site) %>%
+  mutate(urc.samples = purrr::map(urc.mass, sample_n, 10000, replace = T), 
+         lob.samples = purrr::map(lob.mass, sample_n, 10000, replace = T)) %>%
+  purrr::pmap(predict.fun) %>% 
+  purrr::flatten() %>%
+  set_names(names) %>%
+  as_tibble() %>%
+  gather(id, prediction) %>%
+  separate(id, into = c("year", "site"), sep = "[-]") %>%
+  mutate(estimate = "full")
+
+ggplot(full)+
+  ggridges::geom_density_ridges(aes(x = prediction, y = as.factor(year)), rel_min_height = 0.001)+
+  facet_wrap(~site, scales = "free")
+
+
+#--------------------------------------------------------
+# Combine for plotting
+#--------------------------------------------------------
+
+df <- rbind(null, mu, full)
+
+ggplot(df)+
+  ggridges::geom_density_ridges(aes(x = prediction, y = as.factor(year), fill = estimate), rel_min_height = 0.001)+
+  facet_wrap(~site, scales = "free")
+
+
+p6 <- df %>%
+  group_by(year, site, estimate) %>%
+  median_qi(.width = c(.95,.75)) %>%
+  ungroup() %>%
+  mutate(estimate = recode(estimate, full = "Fully integrated allometric model", mu = "Allometric model w/ mean body size", null = "Unstructured model")) %>% 
+  ggplot(aes(x = prediction, y = forcats::fct_rev(year)))+
+  geom_pointintervalh(aes(color = estimate), position = position_dodge(width = 0.5))+
+  scale_color_manual(values = c('#AF8DC3','#C3AF8D','#8DC3AF'))+
+  facet_wrap(~site, scales = "free")+
+  labs(x = expression(paste("Predicted consumption rate (ind. m"^-2,"h"^-1,")")), y = "", color = "")+
+  theme(legend.position = c(0.7, 0.3))
+
+ggsave(here::here("figures/", "observational.png"), p6, width = 3*4, height = 3*2)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 mu %>% 
   mutate(estimate = "predict.mu") %>%
   rename(value = predict.mu) %>%
@@ -256,10 +331,16 @@ mu %>%
 
 
 
-df.mod <- mu %>% arrange(id) %>% bind_cols(select(t, prediction)) %>%
-  group_by(id) %>%
-  summarize(predict.mu = median(predict.mu), 
-            prediction = median(prediction))
+df.mod <- mu %>% 
+  mutate(estimate = "predict.mu") %>%
+  rename(value = predict.mu) %>%
+  bind_rows(t %>% mutate(estimate = "prediction") %>% rename(value = prediction)) %>%
+  separate(id, into = c("year", "site"), sep = "-") %>%
+  group_by(year, site, estimate) %>%
+  spread(estimate, value)
+
+ggplot(df.mod, aes(x = ))
+
 plot(prediction ~ predict.mu, df.mod)
 lm1 <- lm(prediction ~ predict.mu, df.mod)
 summary(lm1)
