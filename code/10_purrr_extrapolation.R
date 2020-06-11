@@ -139,35 +139,35 @@ names <- s %>% mutate(id = paste(year, site, sep = "-")) %>%
 
 names <- as.vector(names$id)
 
-t <- s %>%
-  group_by(year, site) %>%
-  mutate(urc.samples = purrr::map(urc.mass, sample_n, 10000, replace = T), 
-         lob.samples = purrr::map(lob.mass, sample_n, 10000, replace = T)) %>%
-  purrr::pmap(predict.fun) %>% 
-  purrr::flatten() %>%
-  set_names(names) %>%
-  as_tibble() %>%
-  gather(id, prediction)
-  
+# t <- s %>%
+#   group_by(year, site) %>%
+#   mutate(urc.samples = purrr::map(urc.mass, sample_n, 10000, replace = T), 
+#          lob.samples = purrr::map(lob.mass, sample_n, 10000, replace = T)) %>%
+#   purrr::pmap(predict.fun) %>% 
+#   purrr::flatten() %>%
+#   set_names(names) %>%
+#   as_tibble() %>%
+#   gather(id, prediction)
+#   
+# # t %>%
+# #   ggplot()+
+# #   geom_histogram(aes(x = prediction))+
+# #   facet_wrap(~id, scales = "free")
+# 
 # t %>%
-#   ggplot()+
-#   geom_histogram(aes(x = prediction))+
-#   facet_wrap(~id, scales = "free")
-
-t %>%
-  separate(id, into = c("year", "site"), sep = "-") %>%
-  group_by(year, site) %>%
-  summarize(mean.prediction = mean(prediction)) %>%
-  ggplot(aes(x = as.numeric(year), y = mean.prediction))+
-  geom_line(aes(color = site))
-
-t %>%
-  separate(id, into = c("year", "site"), sep = "-") %>%
-  group_by(year, site) %>%
-  median_qi() %>%
-  ggplot(aes(x = as.numeric(year), y = prediction))+
-  geom_line(aes(color = site))+
-  geom_point(aes(color = site))
+#   separate(id, into = c("year", "site"), sep = "-") %>%
+#   group_by(year, site) %>%
+#   summarize(mean.prediction = mean(prediction)) %>%
+#   ggplot(aes(x = as.numeric(year), y = mean.prediction))+
+#   geom_line(aes(color = site))
+# 
+# t %>%
+#   separate(id, into = c("year", "site"), sep = "-") %>%
+#   group_by(year, site) %>%
+#   median_qi() %>%
+#   ggplot(aes(x = as.numeric(year), y = prediction))+
+#   geom_line(aes(color = site))+
+#   geom_point(aes(color = site))
 
 #-----------------------------------------------------------------------------------------------
 ## Prediction analysis
@@ -178,6 +178,7 @@ t %>%
 # No body size dependence
 # Body size dependence, population mean sizes
 # Body size dependence, observed body size distributions.
+# Body size dependence - according to MTE
 
 #-------------------------------
 # No body size dependence
@@ -246,12 +247,100 @@ ggplot(full)+
   ggridges::geom_density_ridges(aes(x = prediction, y = as.factor(year)), rel_min_height = 0.001)+
   facet_wrap(~site, scales = "free")
 
+#------------------------------------------------------------------------
+# Empirical expectations of allometric scaling from Rall et al.
+#------------------------------------------------------------------------
+
+#df.mte <- read.csv(here::here("data/cleaned/posteriors", "mte_population.csv")) %>% as_tibble() %>% sample_draws(10000)
+
+# Predict solely based on the exponents for marine invertebrates from Rall et al. 2012. Need to deal with units. Rall uses mg, m2, s. The relationship is: 
+
+
+predict.RALL <- function(lob.samples, urc.samples, urc.a, lob.a, beta1a. = 0.85, beta2a. = 0.09, beta1h. = -0.76, beta2h. = 0.76, h0. = 10.38, a0. = -21.23, T = 1, ...){
+  
+  loga <- a0. + beta1a.*log(lob.samples) + beta2a.*log(urc.samples)
+  logh <- h0. + beta1h.*log(lob.samples) + beta2h.*log(urc.samples)
+  a <- exp(loga)*(60*60)
+  h <- exp(logh)/(60*60)
+  a*urc.a*lob.a*T / (1 + a*h*urc.a)
+  
+}
+
+RALL <- s %>%
+  group_by(year, site) %>%
+  mutate(lob.samples = purrr::map_dbl(lob.mass, ~ mean(.x$mass)), 
+         urc.samples = purrr::map_dbl(urc.mass, ~ mean(.x$mass))) %>%
+  purrr::pmap(predict.RALL) %>% 
+  #purrr::flatten() %>%
+  set_names(names) %>%
+  as_tibble() %>%
+  gather(id, prediction) %>%
+  separate(id, into = c("year", "site"), sep = "[-]") %>%
+  mutate(estimate = "Rall")
+
+#------------------------------------------------------------------------
+# Theoretical expectations
+#------------------------------------------------------------------------
+
+# Theory doesn't provide a method of estimating the intercepts, therefore, we used our model to generate an estimate of h0 and a0 given the theoretical expectations of the scaling exponents by forcing the variance in the priors of the parameter estimates to ~0. 
+df.mte <- read.csv(here::here("data/cleaned/posteriors", "mte_population.csv")) %>% as_tibble() %>% sample_draws(10000)
+
+predict.MTE <- function(lob.samples, urc.samples, urc.a, lob.a, beta1a. = 0.58, beta2a. = 0.33, beta1h. = -0.75, beta2h. = 0.5, h0. = df.mte$mu.alpha.h, a0. = df.mte$mu.alpha.a, T = 1, ...){
+  
+  loga <- a0. + beta1a.*log(lob.samples) + beta2a.*log(urc.samples)
+  logh <- h0. + beta1h.*log(lob.samples) + beta2h.*log(urc.samples)
+  a <- exp(loga)
+  h <- exp(logh)
+  a*urc.a*lob.a*T / (1 + a*h*urc.a)
+  
+}
+
+MTE <- s %>%
+  group_by(year, site) %>%
+  mutate(lob.samples = purrr::map_dbl(lob.mass, ~ mean(.x$mass)), 
+         urc.samples = purrr::map_dbl(urc.mass, ~ mean(.x$mass))) %>%
+  purrr::pmap(predict.MTE) %>% 
+  #purrr::flatten() %>%
+  set_names(names) %>%
+  as_tibble() %>%
+  gather(id, prediction) %>%
+  separate(id, into = c("year", "site"), sep = "[-]") %>%
+  mutate(estimate = "MTE")
+
+
+#------------------------------------------------------------------------
+# Allometric scaling of prey size only!
+#------------------------------------------------------------------------
+
+# df.preyonly <- read.csv(here::here("data/cleaned/posteriors", "preyonly_population.csv")) %>% as_tibble() %>% sample_draws(10000)
+# 
+# predict.prey <- function(lob.samples, urc.samples, urc.a, lob.a, beta2a. = df.preyonly$beta2.a, beta2h. = df.preyonly$beta2.h, h0. = df.preyonly$mu.alpha.h, a0. = df.preyonly$mu.alpha.a, T = 1, ...){
+#   
+#   loga <- a0. + beta2a.*log(urc.samples)
+#   logh <- h0. + beta2h.*log(urc.samples)
+#   a <- exp(loga)
+#   h <- exp(logh)
+#   a*urc.a*lob.a*T / (1 + a*h*urc.a)
+#   
+# }
+# 
+# prey <- s %>%
+#   group_by(year, site) %>%
+#   mutate(lob.samples = purrr::map_dbl(lob.mass, ~ mean(.x$mass)), 
+#          urc.samples = purrr::map_dbl(urc.mass, ~ mean(.x$mass))) %>%
+#   purrr::pmap(predict.prey) %>% 
+#   #purrr::flatten() %>%
+#   set_names(names) %>%
+#   as_tibble() %>%
+#   gather(id, prediction) %>%
+#   separate(id, into = c("year", "site"), sep = "[-]") %>%
+#   mutate(estimate = "prey")
 
 #--------------------------------------------------------
 # Combine for plotting
 #--------------------------------------------------------
 
-df <- rbind(null, mu, full)
+df <- rbind(null, mu, full, MTE, RALL)
 
 ggplot(df)+
   ggridges::geom_density_ridges(aes(x = prediction, y = as.factor(year), fill = estimate), rel_min_height = 0.001)+
@@ -262,10 +351,10 @@ p6 <- df %>%
   group_by(year, site, estimate) %>%
   median_qi(.width = c(.95,.75)) %>%
   ungroup() %>%
-  mutate(estimate = recode(estimate, full = "Fully integrated allometric model", mu = "Allometric model w/ mean body size", null = "Unstructured model")) %>% 
+  mutate(estimate = recode(estimate, full = "5. Fully integrated allometric model", mu = "4. Allometric model w/ mean body size", null = "1. Unstructured model", Rall = "3. Empirical expectations", MTE = "2. Theoretical expectations")) %>% 
   ggplot(aes(x = prediction, y = forcats::fct_rev(year)))+
   geom_pointintervalh(aes(color = estimate), position = position_dodge(width = 0.5))+
-  scale_color_manual(values = c('#AF8DC3','#C3AF8D','#8DC3AF'))+
+  scale_color_manual(values = c('#AF8DC3','#C3AF8D', '#c3958d', '#8DC3AF', '#c38db5'))+
   facet_wrap(~site, scales = "free")+
   labs(x = expression(paste("Predicted consumption rate (ind. m"^-2,"h"^-1,")")), y = "", color = "")+
   theme(legend.position = c(0.7, 0.3))

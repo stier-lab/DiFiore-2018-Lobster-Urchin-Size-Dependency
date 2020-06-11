@@ -1,0 +1,119 @@
+---
+title: "AS-BD Meeting"
+author: "Bart DiFiore"
+date: "6/11/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, include = F)
+knitr::opts_knit$set(root.dir = '../../')
+```
+
+Hi Adrian, 
+
+In lew of an agenda I wanted to send along a bit of code and equations to reference for our discussion tomorrow. I felt it would be the best use of our time to talk about the last two figures that I've constructed for the paper. I'm interested in your opinion of what the results mean. No need to read or review this prior to meeting. I just wanted you to have some of the math and figures in front of you for the virtual meeting. 
+
+The first figure felt like a bit of an intellectual leap for me, although in retrospect it feels painfully obvious (my apologies if it was something that you mentioned previously and I missed). I was thinking about why we actually built a bayesian model while writing my methods and chatting about some of Chris J.'s comments with Sam. Finally it dawned on me to include the expectation of MTE and previous empirical metanalyses (Rall et al. 2012, etc.) as informed priors on the allometric scaling equations. 
+
+To review: 
+
+$$
+\begin{align}
+K_{j,k} &= \frac{\alpha_i h_i P_{j,k}}{1 + \alpha_i h_i N_{j, k}}\\
+\alpha_i &= \alpha_0 m^{\beta_{1a}}_{c_i} m^{\beta_{2a}}_{r_i}\\
+h_i &= h_0 m^{\beta_{1h}}_{c_i} m^{\beta_{2h}}_{r_i}\\
+\end{align}
+$$
+where $\beta_{1a} = 0.58$, $\beta_{2a} = 0.33$ (Rall et al. 2012), $\beta_{1h} = -0.75$ (Brown et al. 2004 -- MTE); $\beta_{2h} = 0-1$ (Rall et al. 2012). What's so exciting to me is that even when I include (strongly) informed priors based on theoretical/empirical expectations, the data still suggests different allometric scaling relationships. Here is the figure. For simplicity, I've only included the scaling relationship on the handing time as our analysis suggests that the beta parameters on the attack rates are zero, hence no allometric scaling. 
+
+```{r, include = T, warning=F, fig.cap="Figure 5. Prior predictive and posterior distributions on the allometric scaling of handing time with consumer (A; $m^{\beta_{1h}}_{c_i}$ )) and resource (B; $m^{\beta_{2h}}_{r_i}$) mass estimated from foraging data. The metabolic theory of ecology predicts that handling time (i.e. $1/C_{max}$) should scale with consumer body mass raised to the -¾ and with resource mass to the ¾. Despite the use of strongly informative priors based on theoretical expectations, data from laboratory foraging trials overwhelmed the prior suggesting different allometric scaling relationships." }
+library(tidyverse)
+df.pop <- read.csv(here::here("data/cleaned/posteriors", "allometric_population.csv")) %>% as_tibble()
+
+tau.jags <- function(tau){
+  var = 1/tau
+  sd = sqrt(var)
+  return(c(var, sd))
+}
+
+
+
+prior.beta1.h <- rnorm(length(df.pop$beta1.h), mean = -0.75, sd = tau.jags(rgamma(length(df.pop$beta1.h), shape = 5, rate = 1)))
+
+
+
+prior.beta2.h <- rnorm(length(df.pop$beta1.h), mean = 0.75, sd = tau.jags(rgamma(length(df.pop$beta1.h), shape = 5, rate = 1)))
+
+
+
+
+
+df.plot <- data.frame(prior.beta1.h, posterior.beta1.h = df.pop$beta1.h, 
+                   prior.beta2.h, posterior.beta2.h = df.pop$beta2.h) %>%
+  gather(dist, value) %>%
+  separate(dist, into = c("model", "scaling_exponent", "parameter"), sep = "[.]") %>%
+  mutate(parameter = paste(scaling_exponent, parameter, sep = "."))
+
+meta <- df.plot %>% group_by(model, parameter) %>% 
+  summarize(mean = mean(value))
+meta$text <- c(NA, NA, "MTE\n-0.75", "MTE\n0.75")
+
+ggplot(df.plot, aes(x = value, fill = model))+
+  geom_density(alpha = 0.5)+
+  facet_wrap(~parameter)+
+  coord_cartesian(xlim = c(-3, 2))+
+  geom_vline(data = meta, aes(xintercept = mean), lty = 4, color = "gray30")+
+  geom_text(data = meta, aes(x = c(0, 0, -0.3, 0.3), y = 4, label = text))+
+  labs(x = "Allometric scaling exponent", y = "Density", fill = "")+
+  theme(legend.position = c(0.5,0.5))
+
+#ggsave(here::here("figures/", "posterior-prior.png"), p5, width = 8, height = 3)
+```
+
+The next figure I wanted to chat about involved some pretty extensive coding. I'll source the file here, and send you a full size version of the figure. Essentially, I conducted a scenario analysis of how different strategies of incorporating allometric scaling alters our predictions of interactions strength. I was hoping we could spend some time unpacking this figure. 
+
+![Figure 6. Predicted relative interaction strengths (estimated consumption rates, ind. m-2 h-1) for Panulirus interruptus. foraging on Strongylocentrotus purpuratus at five sites in the Santa Barbara Channel sampled annually for 8 years. Points represent posterior predictions (x̃ ± 50, 95% CI) of the estimated interaction strength under different model scenarios. All scenarios were based on a type II functional response, and incorporating observed predator and prey densities. Scenarios differed in the assumed body size dependence of the functional response, included no allometric scaling (1), allometric scaling based on theoretical (2) or empirical expectations (3), and experimentally-derived scaling relationships evaluated at mean body sizes (4) or integrated across observed body size distributions (5) (see Methods for further details).](../../figures/observational.png)
+
+
+Thanks for checking this out!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

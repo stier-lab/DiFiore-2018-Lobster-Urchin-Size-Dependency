@@ -20,5 +20,7 @@ library(purrr)
 library(ggridges)
 library(rethinking)
 
+colors <- c('#AF8DC3','#C3AF8D','#8DC3AF')
+
 
 set.seed(112618)

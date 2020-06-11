@@ -22,7 +22,7 @@ p1 <- ggplot(df, aes(x = treatment.clean, y = mort))+
   scale_fill_manual(values = colors)+
   geom_jitter(aes(shape = treatment.clean, fill = treatment.clean), color = "white", size = 2, width = 0.25)+
   scale_shape_manual(values = c(21,23,24))+
-  labs(x = "", y = "Percent mortality")+
+  labs(x = "", y = "Proportional mortality")+
   annotate("text", x = c(1,2,3.1), y = c(0.25, 0.35, 0.9), label = c("a", "b", "b"))+
   theme(legend.position = "none")
 

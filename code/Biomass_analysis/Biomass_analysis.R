@@ -54,13 +54,15 @@ pframe <- transform(pframe,
                     upr2=linkinv(pred0+sc2*pp$se.fit))
 
 
-ggplot(df, aes(x = mc, y = prop.m.kill))+
+ps1 <- ggplot(df, aes(x = mc, y = prop.m.kill))+
   geom_point(aes(color = treatment), pch = 21)+
-  geom_ribbon(data = pframe, aes(x = mc, ymin = lwr, ymax = upr, group = treatment), alpha = 0.5, color = "gray")+
-  geom_line(data = newdat, aes(x = mc, y = predicted, color = treatment), lwd = 1.2)+
-  labs(x = "Lobster size (g)", y = "Grams of urchins eaten per gram offered", color = "")+
+  geom_ribbon(data = pframe, aes(x = mc, ymin = lwr, ymax = upr, group = treatment), alpha = 0.25, color = "gray")+
+  geom_line(data = pframe, aes(x = mc, y = prop.m.kill, color = treatment), lwd = 1.2)+
+  scale_color_manual(values = c('#AF8DC3','#C3AF8D','#8DC3AF'))+
+  labs(x = "Predator body size (g)", y = "Grams of prey eaten per gram offered", color = "")+
   theme(legend.position = c(0.6, 0.8))
 
+ggsave(here::here("figures/", "biomass-maxconsumption.png"), ps1, width = 8, height = 6)
 
 
 
