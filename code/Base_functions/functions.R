@@ -427,3 +427,11 @@ post_hoc_CI <- function(mr, data, prob = 0.95){
   
   return(data.frame(mc.seq = mc.seq, mu = mu.median, mu.lower = mu.PI[,1], mu.upper = mu.PI[,2]))
 }
+
+
+
+tau.jags <- function(tau, var = F, sd = T){
+  var = 1/tau
+  sd = sqrt(var)
+  return(sd)
+}

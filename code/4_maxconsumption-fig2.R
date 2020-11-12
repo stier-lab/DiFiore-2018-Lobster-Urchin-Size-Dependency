@@ -37,6 +37,10 @@ glmer2 <- glmer(res ~ scale(size) * treatment + (1|id), data = df, family = "bin
 summary(glmer2)
 summary(multcomp::glht(glmer2, linfct = multcomp::mcp(treatment = "Tukey")))
 
+glm2 <- glm(res ~ size * treatment, data = df, family = "binomial")
+summary(glm2)
+
+
 newdat <- expand.grid(treatment = unique(df$treatment), size = seq(min(df$size), max(df$size), length.out = 1000))
 
 newdat$predicted <- predict(glmer2, newdata = newdat, re.form = NA, type = "response")

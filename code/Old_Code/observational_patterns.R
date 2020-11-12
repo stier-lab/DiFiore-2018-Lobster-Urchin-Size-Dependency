@@ -634,23 +634,30 @@ fig1 <- ggplot(ratio, aes(x = ratio))+
   theme(axis.text.x=element_blank(),
         axis.ticks.x=element_blank())
 
+ks <- ratio %>% group_by(site, year) %>%
+  nest() %>% as.list()
+  # pivot_wider(names_from = year, values_from = data) %>%
+  # pmap(function(x) ks.test(.,., alternative = "two.sided"))
+
+ks.test(as.matrix(ks$data[[1]]), as.matrix(ks$data[[2]]), alternative = "two.sided")
+
 ggsave(here("figures", "ratio-histogram.png"), fig1, device = "png", width = 8.5, height = 6)
 
-ggplot(ratio, aes(x = ratio))+
-  geom_density(aes(group = site), alpha = 0.5, adjust = 1.75, show.legend = T)+
-  scale_fill_manual(values = c('#8dd3c7','#ffffb3','#bebada','#fb8072','#80b1d3'))+
-  scale_x_log10()+
-  labs(x = "Predator:prey ratio", y = "Density", fill = "")+
-  facet_wrap(year~site, nrow = 8, ncol = 5)+
-  theme_pubclean()+
-  theme(axis.text.x=element_blank(),
-        axis.ticks.x=element_blank())
 
 
-ggplot(ratio, aes(x = ratio, y = year))+
+library(dplyr)
+ratio %>% group_by(site, year) %>%
+  do(ggplot2:::compute_density(log10(.$ratio), NULL, adjust = 1.75)) %>%
+  rename(ratio = x) %>%
+  mutate(ratio = 10^ratio) -> ratio_densities
+head(ratio_densities)
+
+
+ggplot(ratio_densities, aes(x = ratio, y = year))+
   geom_density_ridges(aes(fill = site), rel_min_height = 0.01, alpha = 0.8, scale = 4)+
   scale_fill_manual(values = c('#8dd3c7','#ffffb3','#bebada','#fb8072','#80b1d3'))+
   scale_x_log10()+
+  coord_cartesian(xlim = c(-50, 100))+
   facet_wrap(~site)+
   theme_pubclean()
 
@@ -682,7 +689,7 @@ fig1 <- ggplot(ratio_densities, aes(x = ratio, y = year, height = density))+
         legend.background = element_rect(fill = "transparent"), # get rid of legend bg
         legend.box.background = element_rect(fill = "transparent")) # get rid of legend panel bg)
 
-ggsave(here("figures", "ratio-ridgeplot.png"), fig1, device = "png", width = 8.5, height = 8.5/2.5,  bg = "transparent")
+ggsave(here("figures", "ratio-ridgeplot-bysite.png"), fig1, device = "png", width = 8.5, height = 8.5/2.5,  bg = "transparent")
 
 # ggplot(ratio_densities, aes(x = ratio, y = year, height = density))+
 #   geom_density_ridges_gradient(aes(fill = log(ratio)), stat = "identity", scale = 2, alpha = 0.8, rel_min_height = 0.001, show.legend = F)+
@@ -701,4 +708,101 @@ ggplot(lincoln_weather, aes(x = `Mean Temperature [F]`, y = `Month`, fill = ..x.
   geom_density_ridges_gradient(scale = 3, rel_min_height = 0.01) +
   scale_fill_viridis(name = "Temp. [F]", option = "C") +
   labs(title = 'Temperatures in Lincoln NE in 2016')
+
+
+ggplot(ratio, aes(x = ratio, y = year))+
+  geom_density_ridges(aes(fill = site), scale = 2, alpha = 0.9, rel_min_height = 0.01)+
+  scale_fill_manual(values = c('#8dd3c7','#ffffb3','#bebada','#fb8072','#80b1d3'))+
+  #scale_x_log10(breaks = c(0, 1, 10, 100), labels = c(0, 1,10, 100))+
+  coord_cartesian(xlim = c(0, 100))+
+  labs(y = "", x = "Potential predator:prey body size ratios")+
+  facet_wrap(~site, nrow = 1, scales = "free")+
+  theme_pubclean()+
+  theme(strip.background = element_blank(),
+        strip.text.x = element_blank(), 
+        panel.background = element_rect(fill = "transparent"), # bg of the panel
+        plot.background = element_rect(fill = "transparent", color = NA), # bg of the plot
+        panel.grid.major = element_blank(), # get rid of major grid
+        panel.grid.minor = element_blank(), # get rid of minor grid
+        legend.background = element_rect(fill = "transparent"), # get rid of legend bg
+        legend.box.background = element_rect(fill = "transparent")) # get rid of legend panel bg)
+
+
+
+ratio %>% group_by(site, year) %>%
+  summarize(median = median(ratio)) %>%
+  ggplot(aes(x = as.numeric(year), y = median))+
+  geom_line(aes(color = site))
+
+
+lm <- lmer(ratio ~ )
+
+
+
+
+temp <- size.temp %>% filter(year >= 2012, site %in% c("NAPL", "IVEE", "CARP", "MOHK", "AQUE") ) %>%
+  select(year, site, classcode, size, reserve) %>%
+  group_by(year, site, reserve, classcode) %>%
+  summarize(med.size = median(size, na.rm = T)) %>%
+  pivot_wider(names_from = classcode, values_from = med.size)
+
+ggplot(temp, aes(x = PANINT, y = STRPURAD))+
+  geom_point(aes(color = site))
+
+
+lm <- lmer(STRPURAD ~ PANINT + (1|year), temp)
+
+
+
+
+
+#-------------------------------------------------------------------------------------
+## Summary stats (need to redue this)
+#-------------------------------------------------------------------------------------
+
+size.temp %>% filter(year >= 2012, site %in% c("NAPL", "IVEE", "CARP", "MOHK", "AQUE") ) %>%
+  group_by(classcode) %>%
+  summarize(mean = mean(size, na.rm = T), 
+            sd = sd(size, na.rm = T), 
+            min = min(size, na.rm = T), 
+            max = max(size, na.rm = T)) %>%
+  View()
+
+
+
+df.temp <- size.temp %>% filter(year >= 2012, site %in% c("NAPL", "IVEE", "CARP", "MOHK", "AQUE") ) %>% 
+  group_by(classcode, site, year) %>%
+  summarize(mean = mean(size, na.rm = T)) %>%
+  pivot_wider(values_from = mean, names_from = classcode)
+
+ggplot(df.temp, aes(x = PANINT, y = STRPURAD))+
+  geom_point(aes(color = site))
+
+plot(STRPURAD ~PANINT, df.temp)
+summary(lm(PANINT~STRPURAD, df.space))
+cor(x = df.temp$PANINT, y = df.temp$STRPURAD)
+
+summary(lmer(STRPURAD ~PANINT + (1|year), df.temp))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

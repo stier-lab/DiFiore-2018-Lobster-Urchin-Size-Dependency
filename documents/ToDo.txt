@@ -1,0 +1,113 @@
+#-------------------------------------------
+## Lobster Urchin project to do
+#-------------------------------------------
+
+
+#-------------------------------------------
+# Writing 
+#-------------------------------------------
+
+Write introduction
+	- clean up P1
+	- write body size paragraph (p2) 
+	- write p3
+
+
+Write discussion
+	- write an outline
+	
+
+Prepare supplement
+
+
+#-------------------------------------------
+# Analysis
+#-------------------------------------------
+
+
+# High priority
+
+_______________________________________________________________________________________Fix results to include arena area (137 x 76 cm, 46 cm water depth). 
+	So 137/2 x 76 x 35
+
+Fix model III to include posterior predictives and calculate % of variance in raw data explained by the model
+
+Adapt scaling analysis to use lobster size and density and urchin density at the reef scale, and urchin size at the scale of the single transect.
+
+__________________________________________________________________________________Complete alternate Fig 6. That includes a map of the channel
+
+__________________________________________________________________________________Estimate how much of the variation in the data can be accounted for by the predictors? (i.e. predator and prey body size) 
+	-https://avehtari.github.io/bayes_R2/bayes_R2.html#34_lowbwt_%E2%80%93_logistic_regression - resource for how to calculate a bayesian R2
+	-spent way too much time trying to figure this out. Need to go to an expert. 
+
+
+Fix figure 5 so that it accurately reflects what MTE predicts and does not predict. Also include empirical (i.e. Rall) predictions
+
+
+Deal with the wAIC estimation for the generalized ricker vs. power law function for the allometric scaling of attack rates.
+
+
+
+#Low priority
+
+Redue the model analysis for figure 2 -- make bayesian 
+
+Rebuild Fig. 1 -- histograms
+
+Replace Fig. 1b with Figure S1? Not sure but the supplemental version seems to be more important...
+
+Generate posterior predictions for each individual based on model 3 - This isn't essential but I think should be included as a supplemental figure
+
+Out of sample analysis??? -- likely wait till the review stage on this
+
+
+
+
+#-------------------------------------------
+# Logistical
+#-------------------------------------------
+
+
+Update README.md file
+
+Clean each core code file (1-8) and add comments
+
+Review raw data and ensure that data was cleaned sufficiently
+
+
+
+
+#-------------------------------------------------------------------------------------
+## Completed
+#-------------------------------------------------------------------------------------
+
+
+____________________________________________________________________________________Revise results
+_____________________________________________________________________________________Write results paragraph about predictions to observational data
+
+____________________________________________________________________________________Revise methods in light of "third" model, specifically in Methods section D
+
+_____________________________________________________Clean up repo
+
+_____________________________________________________________Build figure for observational data
+	- _____________________________________________________add null to the observational analysis. Plot predictions from the null model relative to the predictions from the size-structured model
+
+____________________________________________________________Finish third model
+
+
+_____________________________________________________________Build fig. 2 by biomass: does everything collapse when viewed on a per g basis?
+
+_____________________________________________________________Build JAGs model with no size structure
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,6 +1,6 @@
 library(here)
 source(here("code", "1_setup.R"))
-source(here("code", "Base_code/functions.R"))
+source(here("code", "Base_functions/functions.R"))
 
 
 #####################################
@@ -10,6 +10,17 @@ source(here("code", "Base_code/functions.R"))
 
 df <- read.table(here("data/cleaned","loburc_cleaned.csv"), header = T, sep = ",") %>%
   arrange(id, treatment)
+
+
+dunn.h <- 0.741 * 24 #days
+log(dunn.h)
+
+# tank area in Dunn 
+area.dunn <- pi*(2.18/2)^2 + 0.91*2.18
+dunn.a <- 0.194 / area.dunn / 
+  24 / #convert to hours
+  0.5 #convert to units of our tanks ~ 2 m2.
+logit(dunn.a)
 
 ##################################################################
 ## the model
@@ -22,10 +33,10 @@ model{
 
   # hyperprior
   
-      mu.logit.a ~ dnorm(0, 0.01)
+      mu.logit.a ~ dnorm(-5.865, mu.tau.a) # Dunn prior on attack rate
       mu.a <- exp(mu.logit.a)/(1+exp(mu.logit.a))
   
-      mu.log.h ~ dnorm(0, 0.01)
+      mu.log.h ~ dnorm(2.878, mu.tau.h) # Dunn prior on h
       mu.h <- exp(max(min(mu.log.h, 20), -20))
       
   
@@ -66,15 +77,23 @@ model{
       }
 
 # Piors on variances for all levels
-    sigma_int.a ~dunif(0,10)
-                 tau_int.a <- 1/(sigma_int.a*sigma_int.a)
-                 sigma_int.h ~dunif(0,10)
-                 tau_int.h <- 1/(sigma_int.h*sigma_int.h)
-                 
-                 sigma_t.a ~ dunif(0,10)
-                 t.tau.a <- 1/(sigma_t.a*sigma_t.a)
-                 sigma_t.h ~ dunif(0,10)
-                 t.tau.h <- 1/(sigma_t.h*sigma_t.h)
+          sigma_int.a ~dunif(0,10)
+          tau_int.a <- 1/(sigma_int.a*sigma_int.a)
+          sigma_int.h ~dunif(0,10)
+          tau_int.h <- 1/(sigma_int.h*sigma_int.h)
+          
+          sigma_t.a ~ dunif(0,10)
+          t.tau.a <- 1/(sigma_t.a*sigma_t.a)
+          sigma_t.h ~ dunif(0,10)
+          t.tau.h <- 1/(sigma_t.h*sigma_t.h)
+
+          #sigma_mu.a ~ dunif(0,10)
+          #mu.tau.a <- 1/(sigma_mu.a*sigma_mu.a)
+          mu.tau.a ~ dgamma(20, 40)
+
+          #sigma_mu.h ~ dunif(0,10)
+          #mu.tau.h <- 1/(sigma_mu.h*sigma_mu.h)
+          mu.tau.h ~ dgamma(20,40)
 
 }
 ", file = here("code", "JAGs_models/heirarchical_jags.txt"))
@@ -84,7 +103,7 @@ model{
 model.loc=here("code","JAGs_models/heirarchical_jags.txt")
 jags.params=c("a", "h", "t.a", "t.h", "mu.a", "mu.h", 
               "sigma_int.a", "sigma_int.h", "sigma_t.a", "sigma_t.h", 
-              "loga", "logh", "t.logit.a", "t.log.h"
+              "loga", "logh", "t.logit.a", "t.log.h", "sigma_mu.a", "sigma_mu.h", "mu.tau.a", "mu.tau.h"
               )
 
 
@@ -121,7 +140,7 @@ df.ind <- as.mcmc(model) %>%
 
 df.pop <- as.mcmc(model) %>%
   recover_types(df) %>%
-  spread_draws(mu.a, mu.h)
+  spread_draws(mu.a, mu.h, mu.tau.a, mu.tau.h, sigma_int.a, sigma_int.h, sigma_t.a, sigma_t.h)
 
 write.csv(df.pop, here::here("data/cleaned/posteriors", "posteriors_population.csv"), row.names = F)
 write.csv(df.treat, here::here("data/cleaned/posteriors", "posteriors_treatments.csv"), row.names = F)
@@ -194,7 +213,7 @@ par(d)
 
 
 plot(I(killed/48) ~ jitter(initial),data = df, xlab="Number of prey",ylab="Consumption rate (prey consumed per predator per hour)", ylim = c(0,1))
-curve(holling2(x,mu.a[1, 4],mu.h[1,4],P=1,T=1),add=TRUE,col=1,lty=1) #true curve
+curve(holling2(x,mu.a[1, 4],mu.h[1,4],P=1,T=48),add=TRUE,col=1,lty=1) #true curve
 
 MCMCplot(model, params = "t.a")
 MCMCplot(model, params = "t.h", rank = T, xlim = c(-10, 700))
@@ -551,15 +570,45 @@ ggsave(here("figures", "forposter1.svg"), poster1, device = "svg", width = 10, h
 
 
 
+mu.logit.a <- rnorm(10000, -5.865, tau.jags(rgamma(10000, shape = 10, rate = 20)))
+mu.a <- exp(mu.logit.a)/(1+exp(mu.logit.a))
+d <- par(mfrow = c(2,2))
+hist(mu.logit.a)
+hist(mu.a, breaks = 1000)
+hist(logit(df.pop$mu.a))
+hist(df.pop$mu.a, breaks = 1000)
+par(d)
 
 
+mu.log.h <- rnorm(10000, 0, tau.jags(0.5))
+mu.h <- exp(mu.log.h)
+d <- par(mfrow = c(1,2))
+hist(mu.log.h)
+hist(mu.h, breaks = 1000)
+par(d)
+
+mu.log.h <- rnorm(10000, log(dunn), tau.jags(rgamma(10000, shape = 200, rate = 400)))
+mu.h <- exp(mu.log.h)
+d <- par(mfrow = c(2,2))
+hist(mu.log.h)
+hist(mu.h, breaks = 1000)
+hist(log(df.pop$mu.h))
+hist(df.pop$mu.h, breaks = 1000)
+par(d)
+
+mu.log.h <- rnorm(10000, 0, tau.jags(runif(10000, 0, 10)))
+mu.h <- exp(mu.log.h)
+d <- par(mfrow = c(1,2))
+hist(mu.log.h)
+hist(mu.h, breaks = 1000)
+par(d)
+
+hist(runif(10000, 0, 10))
+hist(rgamma(10000, shape = 15, rate = 30))
+hist(rlnorm(10000, meanlog = log(dunn), sdlog = 1))
+mean(rlnorm(10000, meanlog = log(dunn), sdlog = 0.01))
+
+dunn <- 0.741 * 24 #days
 
 
-
-
-
-
-
-
-
-
+df.null <- read.csv(here::here("data/cleaned/posteriors/", "posteriors_null.csv"))

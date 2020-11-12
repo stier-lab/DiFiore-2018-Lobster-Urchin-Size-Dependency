@@ -1,11 +1,17 @@
 ####################################################################################
 ## Size Frequency Distributions
 ####################################################################################
+library(here)
+source(here("code", "1_setup.R"))
 
 # Get data
 
-lob <- read.csv("data/Lobster_Abundance_All_Years_20171219.csv", header = T) %>% 
-  na_if(-99999) %>% select(YEAR, MONTH, DATE, SITE, SBC_LTER_TRANSECT, SIZE, COUNT) %>% add_column(COMMON_NAME = "Spiny Lobster") %>% rename(TRANSECT = SBC_LTER_TRANSECT) %>% mutate(PROTECTION = ifelse(SITE == "IVEE" | SITE == "NAPL", "MPA", "FISHED"), SIZE = SIZE*0.1) %>% mutate(bins = cut_width(SIZE, width = .5))
+lob <- read.csv("data/LTER/Lobster_Abundance_All_Years.csv", header = T) %>% 
+  na_if(-99999) %>% select(YEAR, MONTH, DATE, SITE, SBC_LTER_TRANSECT, SIZE, COUNT) %>%
+  add_column(COMMON_NAME = "Spiny Lobster") %>%
+  rename(TRANSECT = SBC_LTER_TRANSECT) %>%
+  mutate(PROTECTION = ifelse(SITE == "IVEE" | SITE == "NAPL", "MPA", "FISHED"), SIZE = SIZE*0.1) %>%
+  mutate(bins = cut_width(SIZE, width = .5))
 
 
 urc <- read.csv("data/LTE_Urchin_All_Years_20190611.csv", header = T) %>% 

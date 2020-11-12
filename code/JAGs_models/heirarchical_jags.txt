@@ -1,62 +1,129 @@
 
-
-model{
-# PRIORS
-
-  # hyperprior
-  
-      mu.logit.a ~ dnorm(0, 0.01)
-      mu.a <- exp(mu.logit.a)/(1+exp(mu.logit.a))
-  
-      mu.log.h ~ dnorm(0, 0.01)
-      mu.h <- exp(max(min(mu.log.h, 20), -20))
-      
-  
-  
-  # Treatment level piors
-      for(i in 1:Ntreats){
-          #a
-          t.logit.a[i] ~ dnorm(mu.logit.a, t.tau.a)
-          t.a[i] <- exp(t.logit.a[i])/(1+exp(t.logit.a[i]))
-          
-          #h
-          t.log.h[i] ~ dnorm(mu.log.h, t.tau.h)
-          t.h[i] <- exp(max(min(t.log.h[i],20),-20))
-      
-      }
-  
-  
-  # Individual level piors
-      for(i in 1:num.ind){
-          
-          # a
-          loga[i] ~ dnorm(t.logit.a[tind[i]], tau_int.a)
-          a[i] <- exp(loga[i])/(1+exp(loga[i]))
-          
-          # h
-          logh[i] ~ dnorm(t.log.h[tind[i]], tau_int.h)
-          h[i] <- exp(max(min(logh[i],10),-20))
-      }
-
-# functional response likelihood
-
-      for(i in 1:n){
-      
-          prob[i] <- max(0.0001,min(0.9999,T/(1/a[id[i]] + h[id[i]]*initial[i])))
-          
-          killed[i] ~ dbin(prob[i],initial[i])
-      
-      }
-
-# Piors on variances for all levels
-    sigma_int.a ~dunif(0,10)
-                 tau_int.a <- 1/(sigma_int.a*sigma_int.a)
-                 sigma_int.h ~dunif(0,10)
-                 tau_int.h <- 1/(sigma_int.h*sigma_int.h)
                  
-                 sigma_t.a ~ dunif(0,10)
-                 t.tau.a <- 1/(sigma_t.a*sigma_t.a)
-                 sigma_t.h ~ dunif(0,10)
-                 t.tau.h <- 1/(sigma_t.h*sigma_t.h)
+ model{
+ # PRIORS
+ 
+ # hyperprior
+ 
+ mu.logit.a ~ dnorm(-5.865, mu.tau.a) # Dunn prior on attack rate
+ mu.a <- exp(mu.logit.a)/(1+exp(mu.logit.a))
+ 
+ mu.log.h ~ dnorm(2.878, mu.tau.h) # Dunn prior on h
+ mu.h <- exp(max(min(mu.log.h, 20), -20))
+ 
+ 
+ 
+ # Treatment level piors
+ for(i in 1:Ntreats){
+ #a
+ t.logit.a[i] ~ dnorm(mu.logit.a, t.tau.a)
+ t.a[i] <- exp(t.logit.a[i])/(1+exp(t.logit.a[i]))
+ 
+ #h
+ t.log.h[i] ~ dnorm(mu.log.h, t.tau.h)
+ t.h[i] <- exp(max(min(t.log.h[i],20),-20))
+ 
+ }
+ 
+ 
+ # Individual level piors
+ for(i in 1:num.ind){
+ 
+ # a
+ loga[i] ~ dnorm(t.logit.a[tind[i]], tau_int.a)
+ a[i] <- exp(loga[i])/(1+exp(loga[i]))
+ 
+ # h
+ logh[i] ~ dnorm(t.log.h[tind[i]], tau_int.h)
+ h[i] <- exp(max(min(logh[i],10),-20))
+ }
+ 
+ # functional response likelihood
+ 
+ for(i in 1:n){
+ 
+ prob[i] <- max(0.0001,min(0.9999,T/(1/a[id[i]] + h[id[i]]*initial[i])))
+ 
+ killed[i] ~ dbin(prob[i],initial[i])
+ 
+ }
+ 
+ # Piors on variances for all levels
+ sigma_int.a ~dunif(0,10)
+ tau_int.a <- 1/(sigma_int.a*sigma_int.a)
+ sigma_int.h ~dunif(0,10)
+ tau_int.h <- 1/(sigma_int.h*sigma_int.h)
+ 
+ sigma_t.a ~ dunif(0,10)
+ t.tau.a <- 1/(sigma_t.a*sigma_t.a)
+ sigma_t.h ~ dunif(0,10)
+ t.tau.h <- 1/(sigma_t.h*sigma_t.h)
+ 
+ #sigma_mu.a ~ dunif(0,10)
+ #mu.tau.a <- 1/(sigma_mu.a*sigma_mu.a)
+ mu.tau.a ~ dgamma(20, 40)
+ 
+ #sigma_mu.h ~ dunif(0,10)
+ #mu.tau.h <- 1/(sigma_mu.h*sigma_mu.h)
+ mu.tau.h ~ dgamma(20,40)
+
+# Generate posterior predictive distributions
+
+#Population level
+post.logit.mu.a ~ dnorm(mu.logit.a, mu.tau.a)
+post.mu.a <- exp(post.logit.mu.a)/(1+exp(post.logit.mu.a))
+
+post.log.mu.h ~ dnorm(mu.log.h, mu.tau.h)
+post.mu.h <- exp(post.log.mu.h)
+
+for(i in 1:n){
+prob.mu[i] <- max(0.0001,min(0.9999,T/(1/post.mu.a + post.mu.h*initial[i])))
+post.mu[i] ~ dbin(prob.mu[i],initial[i])
+e.mu[i] <- killed[i] - post.mu[i]
+}
+
+
+#Treatment level
+for(i in 1:Ntreats){
+ #a
+post.t.logit.a[i] ~ dnorm(t.logit.a[i], t.tau.a)
+post.t.a[i] <- exp(post.t.logit.a[i])/(1+exp(post.t.logit.a[i]))
+
+#h
+post.t.log.h[i] ~ dnorm(t.log.h[i], t.tau.h)
+post.t.h[i] <- exp(max(min(post.t.log.h[i],20),-20))
+}
+
+for(i in 1:n){
+prob.t[i] <- max(0.0001,min(0.9999,T/(1/post.t.a[treat[i]] + post.t.h[treat[i]]*initial[i])))
+post.t[i] ~ dbin(prob.t[i],initial[i])
+e.t[i] <- killed[i] - post.t[i]
+e.mu.t[i] <- post.t[i] - post.mu[i]
+}
+
+
+
+#Individual level
+for(i in 1:num.ind){
+#a
+post.ind.logit.a[i] ~ dnorm(loga[i], tau_int.a)
+post.ind.a[i] <- exp(post.ind.logit.a[i])/(1+exp(post.ind.logit.a[i]))
+
+#h
+post.ind.log.h[i] ~ dnorm(logh[i], tau_int.h)
+post.ind.h[i] <- exp(max(min(post.ind.log.h[i],20),-20))
+}
+
+for(i in 1:n){
+prob.ind[i] <- max(0.0001,min(0.9999,T/(1/post.ind.a[id[i]] + post.ind.h[id[i]]*initial[i])))
+post.ind[i] ~ dbin(prob.ind[i],initial[i])
+e.ind[i] <- killed[i] - post.ind[i]
+e.ind.t[i] <- post.ind[i] - post.t[i]
+e.ind.mu[i] <- post.ind[i] - post.mu[i]
+}
+
+
+
 
 }
+                 

@@ -5,6 +5,12 @@ library(here)
 source(here("code", "Base_functions/Functions.R"))
 source(here("code", "1_setup.R"))
 
+# Tank size
+
+# Full tank is 137 x 76. I'm going to stick with areal measures (rather than volumetric) because LTER works off of an areal basis. Therefore experimental tanks were 68.5 x 76. 
+
+tsize <- 137/2 * 76 /10000
+
 # get the lte urchin size data
 
 urc.s <- read.csv(here("data/LTER", "LTE_Urchin_All_Years.csv"), header = T) %>% # get urchin size data for SBC LTER LTE transects.
@@ -100,8 +106,8 @@ lob.s <- lob %>%
 
 
 
-df.a <- bind_rows(urc.a, lob.a) %>% select(year, site, sp_code, biomass) %>%
-  spread(sp_code, biomass) %>%
+df.a <- bind_rows(urc.a, lob.a) %>% select(year, site, sp_code, density) %>%
+  spread(sp_code, density) %>%
   rename(lob.a = PAIN, urc.a = SPL)
 
 s <- left_join(lob.s, urc.s) %>%
@@ -126,7 +132,7 @@ predict.fun <- function(lob.samples, urc.samples, urc.a, lob.a, beta1a. = post$b
   
   loga <- a0. + beta1a.*log(lob.samples) + beta2a.*log(urc.samples)
   logh <- h0. + beta1h.*log(lob.samples) + beta2h.*log(urc.samples)
-  a <- exp(loga)
+  a <- exp(loga)/tsize
   h <- exp(logh)
   a*urc.a*lob.a*T / (1 + a*h*urc.a)
   
@@ -187,7 +193,7 @@ names <- as.vector(names$id)
 df.null <- read.csv(here::here("data/cleaned/posteriors", "posteriors_null.csv")) %>% as_tibble() %>% sample_draws(10000)
 
 predict.FR <- function(urc.a, lob.a, a = df.null$a, h = df.null$h, ...){
-  a*urc.a*lob.a/(1 + a*h*urc.a)
+  (a/tsize)*urc.a*lob.a/(1 + (a/tsize)*h*urc.a)
 }
 
 null <- s %>%
@@ -260,7 +266,7 @@ predict.RALL <- function(lob.samples, urc.samples, urc.a, lob.a, beta1a. = 0.85,
   
   loga <- a0. + beta1a.*log(lob.samples) + beta2a.*log(urc.samples)
   logh <- h0. + beta1h.*log(lob.samples) + beta2h.*log(urc.samples)
-  a <- exp(loga)*(60*60)
+  a <- exp(loga)*(60*60)/tsize
   h <- exp(logh)/(60*60)
   a*urc.a*lob.a*T / (1 + a*h*urc.a)
   
@@ -285,11 +291,13 @@ RALL <- s %>%
 # Theory doesn't provide a method of estimating the intercepts, therefore, we used our model to generate an estimate of h0 and a0 given the theoretical expectations of the scaling exponents by forcing the variance in the priors of the parameter estimates to ~0. 
 df.mte <- read.csv(here::here("data/cleaned/posteriors", "mte_population.csv")) %>% as_tibble() %>% sample_draws(10000)
 
+# Alternatively, we could borrow from the Rall paper to get the intercepts and fix the exponents.
+
 predict.MTE <- function(lob.samples, urc.samples, urc.a, lob.a, beta1a. = 0.58, beta2a. = 0.33, beta1h. = -0.75, beta2h. = 0.5, h0. = df.mte$mu.alpha.h, a0. = df.mte$mu.alpha.a, T = 1, ...){
   
   loga <- a0. + beta1a.*log(lob.samples) + beta2a.*log(urc.samples)
   logh <- h0. + beta1h.*log(lob.samples) + beta2h.*log(urc.samples)
-  a <- exp(loga)
+  a <- exp(loga)/tsize
   h <- exp(logh)
   a*urc.a*lob.a*T / (1 + a*h*urc.a)
   
@@ -307,6 +315,18 @@ MTE <- s %>%
   separate(id, into = c("year", "site"), sep = "[-]") %>%
   mutate(estimate = "MTE")
 
+
+MTE.fixed <- s %>%
+  group_by(year, site) %>%
+  mutate(lob.samples = purrr::map_dbl(lob.mass, ~ mean(.x$mass)), 
+         urc.samples = purrr::map_dbl(urc.mass, ~ mean(.x$mass))) %>%
+  purrr::pmap(predict.MTE, h0. = 10.38, a0. = -21.23) %>% 
+  #purrr::flatten() %>%
+  set_names(names) %>%
+  as_tibble() %>%
+  gather(id, prediction) %>%
+  separate(id, into = c("year", "site"), sep = "[-]") %>%
+  mutate(estimate = "MTE.fixed")
 
 #------------------------------------------------------------------------
 # Allometric scaling of prey size only!
@@ -340,13 +360,15 @@ MTE <- s %>%
 # Combine for plotting
 #--------------------------------------------------------
 
-df <- rbind(null, mu, full, MTE, RALL)
+df <- rbind(null, mu, full, RALL, MTE.fixed)
+write.csv(df, here::here("data/cleaned/posteriors", "observational_predictions.csv"), row.names = F)
+df <- read.csv(here::here("data/cleaned/posteriors/", "observational_predictions.csv"))
 
 ggplot(df)+
   ggridges::geom_density_ridges(aes(x = prediction, y = as.factor(year), fill = estimate), rel_min_height = 0.001)+
   facet_wrap(~site, scales = "free")
 
-
+# fully facetted plot for supplement (?)
 p6 <- df %>%
   group_by(year, site, estimate) %>%
   median_qi(.width = c(.95,.75)) %>%
@@ -354,7 +376,9 @@ p6 <- df %>%
   mutate(estimate = recode(estimate, full = "5. Fully integrated allometric model", mu = "4. Allometric model w/ mean body size", null = "1. Unstructured model", Rall = "3. Empirical expectations", MTE = "2. Theoretical expectations")) %>% 
   ggplot(aes(x = prediction, y = forcats::fct_rev(year)))+
   geom_pointintervalh(aes(color = estimate), position = position_dodge(width = 0.5))+
-  scale_color_manual(values = c('#AF8DC3','#C3AF8D', '#c3958d', '#8DC3AF', '#c38db5'))+
+  scale_color_manual(values = c('#AF8DC3','#C3AF8D', '#c3958d', '#8DC3AF', 
+                                #'#c38db5'
+                                "black"))+
   facet_wrap(~site, scales = "free")+
   labs(x = expression(paste("Predicted consumption rate (ind. m"^-2,"h"^-1,")")), y = "", color = "")+
   theme(legend.position = c(0.7, 0.3))
@@ -363,17 +387,41 @@ ggsave(here::here("figures/", "observational.png"), p6, width = 3*4, height = 3*
 
 
 
+# plot for main text that shows variation but points to differences in mean estimates from models
+groups <- df %>% 
+  mutate(id = paste(year, site, sep = "")) %>%
+  group_by(year, site, estimate, id) %>%
+  mean_qi(prediction)
+
+# mean estimate averaged across sites and years. Variance represents spatio-temporal variance NOT parameter or size distribution variance. 
+mean <- groups %>% 
+  group_by(estimate) %>%
+  mean_qi(prediction)
+  
+coef <- ggplot(groups, aes(x = prediction, y = estimate))+
+  geom_pointintervalh(aes(group = id, color = estimate), position = position_dodge(0.25), alpha = 0.25)+
+  scale_color_manual(values = c('#AF8DC3','#C3AF8D', '#c3958d', '#8DC3AF', '#c38db5'))+
+  geom_pointintervalh(data = mean, aes(x = prediction, y = estimate)) +
+  labs(y = "", x = expression(paste("Predicted consumption rate (ind. m"^-2,"h"^-1,")")))
 
 
+# time series plot
+timeseries <- groups %>% filter(estimate == "full") %>%
+ggplot(aes(x = as.numeric(year), y = prediction))+
+  geom_line(aes(color = site))+
+  geom_point(aes(color = site))+
+  scale_color_manual(values = c('#AF8DC3','#C3AF8D', '#c3958d', '#8DC3AF', '#c38db5'))+
+  labs(x = "", y = expression(paste("Predicted consumption rate (ind. m"^-2,"h"^-1,")")), color = "Site")+
+  theme(legend.position = c(0.1, 0.8))
+  
+
+p6b <- plot_grid(timeseries, coef, nrow = 1)
+ggsave(here::here("figures/", "observational_alt.png"), p6b, width = 3*4, height = 3*2)
 
 
-
-
-
-
-
-
-
+#----------------------------------------------------------------------------
+## Scrap
+#----------------------------------------------------------------------------
 
 mu %>% 
   mutate(estimate = "predict.mu") %>%
@@ -434,6 +482,283 @@ plot(prediction ~ predict.mu, df.mod)
 lm1 <- lm(prediction ~ predict.mu, df.mod)
 summary(lm1)
 plot(resid(lm1) ~ predict.mu, df.mod)
+
+
+temp <- groups %>% select(year, site, prediction, estimate) %>% pivot_wider(values_from = prediction, names_from = estimate)
+
+plot( mu ~ null, temp)
+abline(0,1)
+
+plot(mu ~ Rall, temp)
+abline(0, 1)
+
+plot(mu ~ MTE, temp)
+abline(0, 1)
+
+mean(temp$null)/sd(temp$null)
+mean(temp$mu)/sd(temp$mu)
+var(df$prediction[df$estimate == "mu"])
+var(df$prediction[df$estimate == "null"])
+
+
+
+ggplot(df, aes(x = ))
+
+
+
+
+
+
+
+
+
+temp <- do.call("rbind", replicate(3, mu, simplify = FALSE)) %>% select(-estimate) %>% rename(mu = "prediction")
+temp2 <- rbind(null[, c("prediction", "estimate")], full[, c("prediction", "estimate")], MTE[, c("prediction", "estimate")])
+
+temp$alt <- temp2$prediction
+temp$estimate <- temp2$estimate
+
+
+ggplot(temp, aes(x = mu, y = alt))+
+  geom_point(aes(color = estimate), shape = 21, alpha = 0.5)+
+  geom_abline(slope = 1, intercept = 0)
+
+#------------------------------------------------------------------------
+## 1:1 plot comparing MU estiamtes to other estimates
+#------------------------------------------------------------------------
+
+sum <- df %>% group_by(year, site, estimate) %>%
+  summarize(mean = mean(prediction)) %>%
+  pivot_wider(names_from = estimate, values_from = mean) %>%
+  pivot_longer(cols = c(null, full, MTE, Rall, MTE.fixed), names_to = "estimate", values_to = "prediction") %>%
+  filter(estimate != "MTE")
+
+
+fig6.p3 <- df %>% group_by(year, site, estimate) %>% mutate(.draw = 1:n()) %>% sample_draws(500) %>%
+  pivot_wider(names_from = estimate, values_from = prediction) %>%
+  pivot_longer(cols = c(null, full, MTE), names_to = "estimate", values_to = "prediction") %>%
+  filter(estimate != "MTE") %>%
+  ggplot(aes(x = mu, y = prediction))+
+  geom_point(aes(fill = estimate), shape = 21, alpha = 0.25, color = "white")+
+  geom_point(data = sum, aes(x  = mu, y = prediction, fill = estimate), size = 2, shape = 21, color = "black")+
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed")+
+  ylim(0, 0.0035)+ # this cuts off a whole bunch of points!
+  xlim(0, 0.0025)+
+  labs(y = expression(paste("Predicted consumption rate (ind. m"^-2,"h"^-1,")")), x = expression(paste("Predicted consumption rate for mean experimental model (ind. m"^-2,"h"^-1,")")), fill = "Model")+
+  theme(legend.position = c(0.75, 0.2))
+  # scale_x_log10()+
+  # scale_y_log10()+
+
+ggsave(here::here("figures", "fig6panel3.png"), fig6.p3, device = "png")
+
+p6_bc <- plot_grid(timeseries, fig6.p3, align = "h")
+
+ggsave(here::here("figures/", "fig6panelbc.png"), p6_bc, width = 8.25*2, height = 8.25/3*2)
+
+
+
+
+
+
+df %>% group_by(estimate) %>%
+  summarize(mean = mean(prediction), 
+            ci.low = PI(prediction)[1], 
+            ci.high = PI(prediction)[2]) %>%
+  ggplot(aes(x = estimate, y = mean))+
+    geom_point()+
+    geom_errorbar(aes(ymin = ci.low, ymax = ci.high))+
+    labs(x = "Model type", y = "Predicted consumption")
+
+
+
+#--------------------------------------------------------------------------------------
+## Extremes plots
+#-------------------------------------------------------------------------------------
+l.sum <- lob.s %>% unnest(cols = c(lob.mass)) %>% group_by(year, site) %>%
+  summarize(mean = mean(mass))
+
+summary(l.sum$mean)
+hist(l.sum$mean)
+
+
+lob.s %>% unnest(cols = c(lob.mass)) %>% group_by(year, site) %>%
+  summarize(mean = mean(mass)) %>%
+  ungroup() %>%
+  drop_na(mean) %>%
+  filter(mean == max(mean) | 
+           mean == min(mean) |
+           abs(mean - mean(mean)) == min(abs(mean - mean(mean))))
+
+filter(abs(b - 1.43) == min(abs(b - 1.43)))
+
+
+
+
+u.sum <- urc.s %>% unnest(cols = c(urc.mass)) %>% group_by(year, site) %>%
+  summarize(mean = mean(mass))
+summary(u.sum$mean)
+hist(u.sum$mean)
+
+urc.s %>% unnest(cols = c(urc.mass)) %>% group_by(year, site) %>%
+  summarize(mean = mean(mass)) %>%
+  ungroup() %>%
+  filter(mean == max(mean) | 
+         mean == min(mean) |
+           abs(mean - mean(mean)) == min(abs(mean - mean(mean))))
+
+
+ex <- s %>% 
+  mutate(avg_lsize = map_dbl(lob.mass, ~{mean(.x$mass)}), 
+         avg_usize = map_dbl(urc.mass, ~{mean(.x$mass)}), 
+         diff = avg_lsize - avg_usize) %>%
+  ungroup() %>%
+  filter(diff == max(diff) | 
+           diff == min(diff) |
+           abs(diff -mean(diff)) == min(abs(diff - mean(diff)))) %>%
+  select(year, site, lob.mass, urc.mass, urc.a, id)
+
+names <- as.vector(ex$id)
+urc.a.mean <- mean(s$urc.a)
+  
+
+null <- ex %>%
+  group_by(year, site) %>%
+  purrr::pmap(predict.FR, lob.a = 1)%>% 
+  set_names(names) %>%
+  as_tibble() %>%
+  gather(id, prediction) %>%
+  separate(id, into = c("year", "site"), sep = "[-]") %>%
+  mutate(estimate = "null")
+
+
+mu <- ex %>%
+  group_by(year, site) %>%
+  mutate(lob.samples = purrr::map_dbl(lob.mass, ~ mean(.x$mass)), 
+         urc.samples = purrr::map_dbl(urc.mass, ~ mean(.x$mass))) %>%
+  purrr::pmap(predict.fun, lob.a = 1)%>% 
+  set_names(names) %>%
+  as_tibble() %>%
+  gather(id, prediction) %>%
+  separate(id, into = c("year", "site"), sep = "[-]") %>%
+  mutate(estimate = "mu")
+
+
+full <- ex %>%
+  group_by(year, site) %>%
+  mutate(urc.samples = purrr::map(urc.mass, sample_n, 10000, replace = T), 
+         lob.samples = purrr::map(lob.mass, sample_n, 10000, replace = T)) %>%
+  purrr::pmap(predict.fun, lob.a = 1) %>% 
+  purrr::flatten() %>%
+  set_names(names) %>%
+  as_tibble() %>%
+  gather(id, prediction) %>%
+  separate(id, into = c("year", "site"), sep = "[-]") %>%
+  mutate(estimate = "full")
+
+RALL <- ex %>%
+  group_by(year, site) %>%
+  mutate(lob.samples = purrr::map_dbl(lob.mass, ~ mean(.x$mass)), 
+         urc.samples = purrr::map_dbl(urc.mass, ~ mean(.x$mass))) %>%
+  purrr::pmap(predict.RALL, lob.a = 1) %>% 
+  #purrr::flatten() %>%
+  set_names(names) %>%
+  as_tibble() %>%
+  gather(id, prediction) %>%
+  separate(id, into = c("year", "site"), sep = "[-]") %>%
+  mutate(estimate = "Rall")
+
+
+MTE <- ex %>%
+  group_by(year, site) %>%
+  mutate(lob.samples = purrr::map_dbl(lob.mass, ~ mean(.x$mass)), 
+         urc.samples = purrr::map_dbl(urc.mass, ~ mean(.x$mass))) %>%
+  purrr::pmap(predict.MTE, lob.a = 1) %>% 
+  #purrr::flatten() %>%
+  set_names(names) %>%
+  as_tibble() %>%
+  gather(id, prediction) %>%
+  separate(id, into = c("year", "site"), sep = "[-]") %>%
+  mutate(estimate = "MTE")
+
+
+MTE.fixed <- ex %>%
+  group_by(year, site) %>%
+  mutate(lob.samples = purrr::map_dbl(lob.mass, ~ mean(.x$mass)), 
+         urc.samples = purrr::map_dbl(urc.mass, ~ mean(.x$mass))) %>%
+  purrr::pmap(predict.MTE, h0. = 10.38, a0. = -21.23, lob.a = 1) %>% 
+  #purrr::flatten() %>%
+  set_names(names) %>%
+  as_tibble() %>%
+  gather(id, prediction) %>%
+  separate(id, into = c("year", "site"), sep = "[-]") %>%
+  mutate(estimate = "MTE.fixed")
+
+
+df.x <- rbind(null, full, mu, MTE, MTE.fixed, RALL) %>%
+  mutate(id = paste(year, site, sep = "-")) %>%
+  filter(estimate != "MTE", estimate != "full") %>%
+  mutate(names = as.factor(recode(id, "2013-CARP" = "Large predators, small prey", "2014-AQUE" = "Mean predators, mean prey", "2015-MOHK" = "Small predators, large prey" ))) %>%
+  mutate(estimate = forcats::fct_relevel(as.factor(estimate), "full", "mu", "null", "MTE.fixed", "Rall"), 
+         estimate = recode(estimate, full = "Fully-integrated\nsize-structured", null = "Unstructured", MTE.fixed = "First principles\nexpectations", Rall = "Metanalysis\nexpectations", mu = "Mean\nsize-structured"))
+
+df.x.sum <- df.x %>% group_by(estimate, names) %>%
+  filter(estimate != "Metanalysis\nexpectations", estimate != "First principles\nexpectations") %>%
+  mean_qi(prediction, .width = c(0.75, 0.95))
+
+extremes <- ggplot(df.x, aes(x = estimate, y = prediction))+
+  geom_jitter(aes(color = estimate), show.legend = F)+
+  geom_pointinterval(data = df.x.sum)+
+  scale_color_manual(values = c('#AF8DC3','#C3AF8D', '#c3958d', '#8DC3AF', '#c38db5'))+
+  facet_wrap(~names)+
+  theme(axis.text.x = element_text(angle = 33, vjust = 0.9, hjust=1))+
+  labs(x = "", y = expression(paste("Predicted consumption (ind. m"^-2,"h"^-1,")", sep = "")))
+
+
+ggsave(here::here("figures/", "extremes.png"), extremes, device = "png", width = 8.5*1.5, height = 8.5*1.5/3)
+
+
+
+#-----------------------------------------------------------------------------
+## Residual based analysis
+#-----------------------------------------------------------------------------
+
+temp <- df %>%
+  filter(estimate == "null" | estimate == "mu") %>%
+  group_by(estimate) %>%
+  mutate(id.vec = 1:n()) %>%
+  group_by(year, site, id.vec, id) %>%
+  pivot_wider(names_from = estimate, values_from = prediction) %>%
+  ungroup() %>%
+  mutate(diff = null-mu, 
+         year = as.integer(year))
+
+# lm1 <- lm(mu ~ null, data = temp)
+# summary(lm1)
+
+
+formerge <- s %>% 
+  mutate(avg_lsize = map_dbl(lob.mass, ~{mean(.x$mass)}), 
+         avg_usize = map_dbl(urc.mass, ~{mean(.x$mass)}), 
+         diff = avg_lsize - avg_usize) %>%
+  select(year, site, lob.a, urc.a, id, avg_lsize, avg_usize)
+
+# 
+# temp$res <- residuals(lm1)
+
+temp <- temp %>% left_join(formerge, by = c("id", "year", "site"))
+
+lm2 <- lm(diff ~ lob.a + urc.a + avg_lsize + avg_usize, temp)
+summary(lm2)
+ 
+lmer <- lmer(diff ~ scale(urc.a) + scale(avg_lsize) * scale(avg_usize) + (1|site) + (1|year), temp)
+summary(lmer)
+
+plot(diff ~ avg_lsize, temp)
+
+plot(mu ~ null, data = temp)
+abline(a = 0, b = 1)
+
+
 
 
 

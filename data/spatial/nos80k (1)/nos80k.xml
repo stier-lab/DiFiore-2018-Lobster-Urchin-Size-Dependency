@@ -1,0 +1,289 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<metadata>
+<idinfo>
+<citation>
+<citeinfo>
+<origin>National Oceanic and Atmospheric Administration (NOAA), National Ocean Service (NOS), Office of Coast Survey, and the Strategic Environmental Assessments (SEA) Division of the Office of Ocean Resources Conservation and Assessment (ORCA)</origin>
+<pubdate>1994</pubdate>
+<pubtime>Unknown</pubtime>
+<title>NOS80K: Medium Resolution Digital Vector U.S. Shoreline shapefile</title>
+<edition>1.0</edition>
+<geoform>vector digital data</geoform>
+<pubinfo>
+<pubplace>Silver Spring, MD</pubplace>
+<publish>NOAA/NOS/ORCA/SEA</publish>
+</pubinfo>
+<onlink>http://seaserver.nos.noaa.gov/projects/shoreline/shoreline.html</onlink>
+</citeinfo>
+</citation>
+<descript>
+<abstract>
+NOAA&apos;s Medium Resolution 1:70,000 scale Digital Vector Shoreline is a high-quality, Geographic Information System-ready, general-use digital vector data set containing the coastline of the contiguous United States of America.  It was created by the Strategic Environmental Assessments (SEA) Division of NOAA&apos;s Office of Ocean Resources Conservation and Assessment. Compiled from hundreds of NOAA coast charts, this product comprises over 75,000 nautical miles of coastline (nearly 2.5 million vectices).
+
+The shoreline was created from data captured (digitized from scanned images of the master separates of the NOS Charts) from over 270 National Ocean Service Navigation Charts and spans some 80,000 nautical miles at an average map scale of 1:70,000.
+</abstract>
+<purpose>
+This product comprises over 75,000 nautical miles of coastline (nearly 2.5 million vectices), representing the entire conterminous United States of America. Alaska, the Hawaiian Islands, Puerto Rico, and all other interests and territories of the United States are not included in the collection.
+
+The data set is designed for a broad target audience ranging from governmental agencies, universities and other research institutions, to the private sector, and students, as well as any other concern requiring a general purpose digital shoreline layer for GIS and cartographic projects.
+</purpose>
+<supplinf>Generally, 1:80,000 NOAA coast charts took precedence and were used when available. For areas where 1:80,000 charts were not readily available, charts with the next closest higher scale (e.g., 1:60,0000) were used down to the highest scale available. Alternately, if higher scale charts were not available, charts of the closest lower scale (e.g., 1:100,000) were used down to the lowest scale. The digital shoreline for Florida was obtained from the state. This digital file was originally created from NOAA nautical charts and was not recreated by SEA. Generally, for these shoreline sections (EC80_06, GC80_05, and GC80_06), the highest scale charts available were used to digitize the shoreline. The resultant average mapping scale for the entire Medium Resolution Digital Vector Shoreline is approximately 1:70,000. See NOAA&apos;s Medium Resolution Digital Vector Shoreline website for more details on this product: &lt;http://seaserver.nos.noaa.gov/projects/shoreline/shoreline.html&gt;</supplinf>
+</descript>
+<timeperd>
+<timeinfo>
+<sngdate>
+<caldate>1994</caldate>
+</sngdate>
+</timeinfo>
+<current>publication date</current>
+</timeperd>
+<status>
+<progress>Complete</progress>
+<update>Unknown</update>
+</status>
+<spdom>
+<bounding>
+<westbc>-124.762451</westbc>
+<eastbc>-66.791978</eastbc>
+<northbc>49.373047</northbc>
+<southbc>24.501658</southbc>
+</bounding>
+</spdom>
+<keywords>
+<theme>
+<themekt>General</themekt>
+<themekey>NOAA</themekey>
+<themekey>Digital Vector Shoreline</themekey>
+<themekey>ArcView shapefile</themekey>
+<themekey>Digital Geographic Boundaries</themekey>
+<themekey>shore</themekey>
+<themekey>shoreline</themekey>
+<themekey>coast</themekey>
+<themekey>coastal features</themekey>
+</theme>
+<place>
+<placekt>General</placekt>
+<placekey>United States</placekey>
+<placekey>continental US</placekey>
+<placekey>conterminous US</placekey>
+<placekey>US 48 states</placekey>
+</place>
+</keywords>
+<accconst>None</accconst>
+<useconst>Not for Navigational Purposes</useconst>
+<ptcontac>
+<cntinfo>
+<cntperp>
+<cntper>Steve Rohmann</cntper>
+<cntorg>NOAA/NOS/SEA/ORCA</cntorg>
+</cntperp>
+<cntaddr>
+<addrtype>mailing and physical address</addrtype>
+<address>NOAA</address>
+<address>N/ORCA1</address>
+<address>9th Floor</address>
+<address>1305 East-West Highway</address>
+<city>Silver Spring</city>
+<state>MD</state>
+<postal>20910</postal>
+<country>USA</country>
+</cntaddr>
+<cntvoice>(301) 713-3000 x137</cntvoice>
+<cntfax>(301) 713-4384</cntfax>
+<cntemail>srohmann@seamail.nos.noaa.gov</cntemail>
+</cntinfo>
+</ptcontac>
+<browse>
+<browsen>&lt;http://www.ngdc.noaa.gov/mgg/shorelines/shorelines.html&gt;</browsen>
+<browsed>illustrates the extent of these data</browsed>
+<browset>HTML</browset>
+</browse>
+<datacred>Please credit National Oceanic and Atmospheric Administration (NOAA), National Ocean Service (NOS), Office of Coast Survey, and the Strategic Environmental Assessments (SEA) Division of the Office of Ocean Resources Conservation and Assessment (ORCA) as the originator of the dataset.</datacred>
+<native>Digital files are available in two general formats (.BNA, and .GEN). There is 100% redundancy between these two formats. The digital files contain no point, polygon, regional, or thematic associations. =</native>
+</idinfo>
+<dataqual>
+<attracc>
+<attraccr>
+The data supplied here are a compilation of information collected from some 270+ current or pre-release National Ocean Service Navigation Charts.   In compiling this product we made no attempt to ascertain the congruency between the charted data, and the real world.  Our objective was to simply capture the representative coastline as provided to us via the NOS Chart.  Every effort was made to capture the shoreline on these charts as faithfully as our skills and technology allowed, and there is every indication that we were successful to this end.  However, in doing so, we automatically conveyed the character (all aspects, both good and bad) of those data to our digital product.  A character which may or may not be in agreement with the real world.  Because of this, the user is advised to exercise caution in making any assumptions about the fallibility, or infallibility, of the spatial information supplied here; especially when circumstances warrant a high degree of absolute positional accuracy.
+
+Spatial data were derived directly from National Ocean Service Navigation Charts.  The NOS Chart Products meet or exceed National Map Accuracy standards (hard copy); the digital data supplied in this compilation should, when plotted at scale, meet or exceed these same cartographic standards.
+</attraccr>
+</attracc>
+<logic>Unspecified</logic>
+<complete>Unspecified</complete>
+<posacc>
+<horizpa>
+<horizpar>The data supplied here are a compilation of information collected from some 270+ current or pre-release National Ocean Service Navigation Charts.   In compiling this product we made no attempt to ascertain the congruency between the charted data, and the real world.  Our objective was to simply capture the representative coastline as provided to us via the NOS Chart.  Every effort was made to capture the shoreline on these charts as faithfully as our skills and technology allowed, and there is every indication that we were successful to this end.  However, in doing so, we automatically conveyed the character (all aspects, both good and bad) of those data to our digital product.  A character which may or may not be in agreement with the real world.  Because of this, the user is advised to exercise caution in making any assumptions about the fallibility, or infallibility, of the spatial information supplied here; especially when circumstances warrant a high degree of absolute positional accuracy.</horizpar>
+</horizpa>
+</posacc>
+<lineage>
+<srcinfo>
+<srccite>
+<citeinfo>
+<origin>Unknown</origin>
+<pubdate>Unknown</pubdate>
+<title>Unspecified</title>
+</citeinfo>
+</srccite>
+<srcscale>80000</srcscale>
+<typesrc>paper</typesrc>
+<srctime>
+<timeinfo>
+<rngdates>
+<begdate>Unknown</begdate>
+<enddate>Unknown</enddate>
+</rngdates>
+</timeinfo>
+<srccurr>ground condition</srccurr>
+</srctime>
+<srccitea>Unspecified</srccitea>
+<srccontr>Unspecified</srccontr>
+</srcinfo>
+<procstep>
+<procdesc>Unspecified</procdesc>
+<procdate>Unknown</procdate>
+</procstep>
+</lineage>
+</dataqual>
+<spdoinfo>
+<direct>Vector</direct>
+<ptvctinf>
+<sdtsterm>
+<sdtstype>G-polygon</sdtstype>
+<ptvctcnt>1</ptvctcnt>
+</sdtsterm>
+</ptvctinf>
+</spdoinfo>
+<spref>
+<horizsys>
+<geograph>
+<latres>0.000001</latres>
+<longres>0.000001</longres>
+<geogunit>Decimal degrees</geogunit>
+</geograph>
+<geodetic>
+<horizdn>North American Datum of 1983</horizdn>
+<ellips>Geodetic Reference System 80</ellips>
+<semiaxis>6378137.000000</semiaxis>
+<denflat>298.257222</denflat>
+</geodetic>
+</horizsys>
+<vertdef>
+<altsys>
+<altdatum>North American Datum of 1983</altdatum>
+<altres>1</altres>
+<altunits>meters</altunits>
+<altenc>Implicit coordinate</altenc>
+</altsys>
+</vertdef>
+</spref>
+<eainfo>
+<detailed>
+<enttyp>
+<enttypl>allus80k.dbf</enttypl>
+<enttypd>Shapefile Attribute Table</enttypd>
+<enttypds>None</enttypds>
+</enttyp>
+<attr>
+<attrlabl>FID</attrlabl>
+<attrdef>Internal feature number.</attrdef>
+<attrdefs>ESRI</attrdefs>
+<attrdomv>
+<udom>Sequential unique whole numbers that are automatically generated.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>Shape</attrlabl>
+<attrdef>Feature geometry.</attrdef>
+<attrdefs>ESRI</attrdefs>
+<attrdomv>
+<udom>Coordinates defining the features.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>ID</attrlabl>
+<attrdef>Feature identification</attrdef>
+<attrdefs>ESRI</attrdefs>
+<attrdomv>
+<udom>unspecified</udom>
+</attrdomv>
+</attr>
+</detailed>
+</eainfo>
+<distinfo>
+<distrib>
+<cntinfo>
+<cntperp>
+<cntper>Steve Rohmann</cntper>
+<cntorg>NOAA, N/ORCA1</cntorg>
+</cntperp>
+<cntaddr>
+<addrtype>mailing and physical address</addrtype>
+<address>NOAA</address>
+<address>N/ORCA1</address>
+<address>9th Floor</address>
+<address>1305 East-West Highway</address>
+<city>Silver Spring</city>
+<state>MD</state>
+<postal>20910</postal>
+<country>USA</country>
+</cntaddr>
+<cntvoice>(301) 713-3000 x137</cntvoice>
+<cntfax>(301) 713-4384</cntfax>
+<cntemail>rohmann@seamail.nos.noaa.gov</cntemail>
+</cntinfo>
+</distrib>
+<resdesc>Downloadable Data: Medium Resolution Digital Vector U.S. Shoreline [OL 72 18.7 -66.5 -168]</resdesc>
+<distliab>Although this data has been processed successfully on a computer system at NOAA, no warranty, expressed or implied, is made by NOAA regarding the utility of the data on any other system, nor shall the act of distribution constitute any such warranty. NOAA warrants the delivery of this product in computer-readable format, and will offer a replacement copy of the product when the product is determined unreadable by computer input peripherals, or when the physical medium is delivered in damaged condition.</distliab>
+<stdorder>
+<digform>
+<digtinfo>
+<formname>Digital files are available in two general formats (.BNA, and .GEN).</formname>
+<transize>38.650</transize>
+</digtinfo>
+<digtopt>
+<onlinopt>
+<computer>
+<networka>
+<networkr>&lt;http://seaserver.nos.noaa.gov/projects/shoreline/shoreline.html&gt;</networkr>
+</networka>
+</computer>
+</onlinopt>
+</digtopt>
+</digform>
+<fees>unspecified</fees>
+</stdorder>
+</distinfo>
+<metainfo>
+<metd>20040318</metd>
+<metc>
+<cntinfo>
+<cntorgp>
+<cntorg>U.S. Geological Survey</cntorg>
+<cntper>Valerie Paskevich</cntper>
+</cntorgp>
+<cntpos>Information Specialist</cntpos>
+<cntaddr>
+<addrtype>mailing and physical address</addrtype>
+<address>384 Woods Hole Road</address>
+<city>Woods Hole</city>
+<state>MA</state>
+<postal>02543-1598</postal>
+<country>USA</country>
+</cntaddr>
+<cntvoice>(508) 548-8700 x2281</cntvoice>
+<cntfax>(508) 457-2310</cntfax>
+<cntemail>vpaskevich@usgs.gov</cntemail>
+</cntinfo>
+</metc>
+<metstdn>FGDC Content Standards for Digital Geospatial Metadata</metstdn>
+<metstdv>FGDC-STD-001-1998</metstdv>
+<mettc>local time</mettc>
+<metac>None</metac>
+<metuc>None</metuc>
+<metextns>
+<onlink>http://www.esri.com/metadata/esriprof80.html</onlink>
+<metprof>ESRI Metadata Profile</metprof>
+</metextns>
+</metainfo>
+</metadata>

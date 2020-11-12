@@ -75,7 +75,7 @@ meta <- distinct(df, id, mc, mr)
 jags.data = list("initial"= df$initial,
                  "killed" = df$killed,
                  "n" = length(df$initial), 
-                 "T" = 48, 
+                 "T" = 48,
                  "mc" = meta$mc,
                  "mr" = meta$mr,
                  "Nind" = length(unique(df$id)), 
