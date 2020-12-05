@@ -128,13 +128,13 @@ post <- read.csv(here::here("data/cleaned/posteriors", "allometric_population.cs
 # h0 = exp(sample(post.h$alpha, 10000, replace = T))
 # a0 = exp(sample(post.a$alpha, 10000, replace = T))
 
-predict.fun <- function(lob.samples, urc.samples, urc.a, lob.a, beta1a. = post$beta1.a, beta2a. = post$beta2.a, beta1h. = post$beta1.h, beta2h. = post$beta2.h, h0. = post$mu.alpha.h, a0. = post$mu.alpha.a, T = 1, ...){
+predict.fun <- function(lob.samples, urc.samples, urc_density, lob_density, beta1a. = post$beta1.a, beta2a. = post$beta2.a, beta1h. = post$beta1.h, beta2h. = post$beta2.h, h0. = post$mu.alpha.h, a0. = post$mu.alpha.a, T = 1, ...){
   
   loga <- a0. + beta1a.*log(lob.samples) + beta2a.*log(urc.samples)
   logh <- h0. + beta1h.*log(lob.samples) + beta2h.*log(urc.samples)
   a <- exp(loga)/tsize
   h <- exp(logh)
-  a*urc.a*lob.a*T / (1 + a*h*urc.a)
+  a*urc_density*lob_density*T / (1 + a*h*urc_density)
   
 }
 
@@ -192,8 +192,8 @@ names <- as.vector(names$id)
 
 df.null <- read.csv(here::here("data/cleaned/posteriors", "posteriors_null.csv")) %>% as_tibble() %>% sample_draws(10000)
 
-predict.FR <- function(urc.a, lob.a, a = df.null$a, h = df.null$h, ...){
-  (a/tsize)*urc.a*lob.a/(1 + (a/tsize)*h*urc.a)
+predict.FR <- function(urc_density, lob_density, a = df.null$a, h = df.null$h, ...){
+  (a/tsize)*urc_density*lob_density/(1 + (a/tsize)*h*urc_density)
 }
 
 null <- s %>%
@@ -262,13 +262,13 @@ ggplot(full)+
 # Predict solely based on the exponents for marine invertebrates from Rall et al. 2012. Need to deal with units. Rall uses mg, m2, s. The relationship is: 
 
 
-predict.RALL <- function(lob.samples, urc.samples, urc.a, lob.a, beta1a. = 0.85, beta2a. = 0.09, beta1h. = -0.76, beta2h. = 0.76, h0. = 10.38, a0. = -21.23, T = 1, ...){
+predict.RALL <- function(lob.samples, urc.samples, urc_density, lob_density, beta1a. = 0.85, beta2a. = 0.09, beta1h. = -0.76, beta2h. = 0.76, h0. = 10.38, a0. = -21.23, T = 1, ...){
   
   loga <- a0. + beta1a.*log(lob.samples) + beta2a.*log(urc.samples)
   logh <- h0. + beta1h.*log(lob.samples) + beta2h.*log(urc.samples)
-  a <- exp(loga)*(60*60)/tsize
+  a <- exp(loga)*(60*60)
   h <- exp(logh)/(60*60)
-  a*urc.a*lob.a*T / (1 + a*h*urc.a)
+  a*urc_density*lob_density*T / (1 + a*h*urc_density)
   
 }
 
@@ -293,13 +293,13 @@ df.mte <- read.csv(here::here("data/cleaned/posteriors", "mte_population.csv")) 
 
 # Alternatively, we could borrow from the Rall paper to get the intercepts and fix the exponents.
 
-predict.MTE <- function(lob.samples, urc.samples, urc.a, lob.a, beta1a. = 0.58, beta2a. = 0.33, beta1h. = -0.75, beta2h. = 0.5, h0. = df.mte$mu.alpha.h, a0. = df.mte$mu.alpha.a, T = 1, ...){
+predict.MTE <- function(lob.samples, urc.samples, urc_density, lob_density, beta1a. = 0.58, beta2a. = 0.33, beta1h. = -0.75, beta2h. = 0.5, h0. = df.mte$mu.alpha.h, a0. = df.mte$mu.alpha.a, T = 1, ...){
   
   loga <- a0. + beta1a.*log(lob.samples) + beta2a.*log(urc.samples)
   logh <- h0. + beta1h.*log(lob.samples) + beta2h.*log(urc.samples)
-  a <- exp(loga)/tsize
+  a <- exp(loga)
   h <- exp(logh)
-  a*urc.a*lob.a*T / (1 + a*h*urc.a)
+  a*urc_density*lob_density*T / (1 + a*h*urc_density)
   
 }
 
@@ -759,9 +759,11 @@ plot(mu ~ null, data = temp)
 abline(a = 0, b = 1)
 
 
-
-
-
+temp <- s %>% ungroup() %>%
+mutate(lob.samples = purrr::map_dbl(lob.mass, ~ mean(.x$mass)), 
+       urc.samples = purrr::map_dbl(urc.mass, ~ mean(.x$mass)), 
+       lob.max = purrr::map_dbl(lob.mass, ~max(.x$mass)))
+summary(temp[,c("lob.samples", "urc.samples")])
 
 
 

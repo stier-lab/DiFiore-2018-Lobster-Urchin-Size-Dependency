@@ -6,8 +6,10 @@ model{
 #-----------------------------------------------------------------------------
 
   # Population level prior on attack rate intercept
-    mu.alpha.a ~ dnorm(-4.5, var.mu.alpha.a)
-    var.mu.alpha.a ~ dunif(0,10)
+    #mu.alpha.a ~ dnorm(-4.5, var.mu.alpha.a)
+    #mu.alpha.a ~ dnorm(0, var.mu.alpha.a)
+    #var.mu.alpha.a ~ dunif(0,10)
+    mu.alpha.a ~ dnorm(0, 0.01)
 
   # Individual level variation in alpha.a    
     for(i in 1:Nind){
@@ -25,8 +27,11 @@ model{
 #------------------------------------------------------------------------------
 
   # Population level prior on handling time intercept
-    mu.alpha.h ~ dnorm(11, var.mu.alpha.h)
-    var.mu.alpha.h ~ dunif(0,10)
+    #mu.alpha.h ~ dnorm(11, var.mu.alpha.h)
+    # mu.alpha.h ~ dnorm(0, var.mu.alpha.h)
+    # var.mu.alpha.h ~ dunif(0,10)
+
+    mu.alpha.h ~ dnorm(0, 0.01)
    
   # Individual level variation in handling time interpect 
     for(i in 1:Nind){
@@ -38,7 +43,7 @@ model{
     beta1.h ~ dnorm(-0.75, var.beta1.h)
     var.beta1.h ~ dgamma(5,1)
 
-    beta2.h ~ dnorm(0.75, var.beta2.h)
+    beta2.h ~ dnorm(0.5, var.beta2.h)
     var.beta2.h ~ dgamma(5,1)
 
     #var.beta1.h <- 10 # what happens when you crank down the variance on the prior, such that all of the probability mass is right around -0.75? The result is that the data is still able to overwhelm the prior!!! 
