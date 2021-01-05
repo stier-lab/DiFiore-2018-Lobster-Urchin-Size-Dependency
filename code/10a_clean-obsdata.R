@@ -8,7 +8,7 @@
 
 urc.s <- read.csv(here("data/LTER", "LTE_Urchin_All_Years.csv"), header = T) %>% # get urchin size data for SBC LTER LTE transects.
   filter(TREATMENT == "CONTROL", COMMON_NAME == "Purple Urchin", YEAR > 2011) %>%
-  select(YEAR, MONTH, DATE, SITE, TRANSECT, SIZE, COUNT) %>% 
+  dplyr::select(YEAR, MONTH, DATE, SITE, TRANSECT, SIZE, COUNT) %>% 
   na_if(-99999) %>%
   rename_all(tolower) %>%
   filter(month == 8) 
@@ -25,7 +25,7 @@ urc.s <- urc.s %>%
          mass =  0.000592598*(size*10)^2.872636198*1.01) %>% # estimate mass based on SBC LTER test diameter - weigh relationship.  IS THIS WET OR DRY MASS!!!!!!
   drop_na(size) %>% 
   group_by(year, site) %>%
-  select(-c(size, month, date, transect)) 
+  dplyr::select(-c(size, month, date, transect)) 
 
 mean_urc_mass <- mean(urc.s$mass)
 
@@ -53,7 +53,7 @@ lob <- read.csv(here("data/LTER", "Lobster_Abundance_All_Years.csv"), header = T
   na_if(-99999) %>% 
   rename_all(tolower) %>%
   filter(site %in% sites) %>% 
-  select(year, month, site, transect, replicate, size_mm, count)
+  dplyr::select(year, month, site, transect, replicate, size_mm, count)
 
 lob.a <- lob %>%
   group_by(year, site, transect) %>%
@@ -74,7 +74,7 @@ lob.s <- lob %>%
          mass = 0.001352821*(size_mm)^2.913963113) %>% #IS THIS WET OR DRY MASS!!!!!!!!!
   drop_na(size_mm) %>% 
   group_by(year, site) %>%
-  select(-size_mm)
+  dplyr::select(-size_mm)
 
 mean_lob_mass <- mean(lob.s$mass)
 

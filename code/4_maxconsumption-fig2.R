@@ -79,4 +79,3 @@ ggsave(here("figures", "fig2-mortality.png"), fig2, device = "png", width = 8.5,
 
 
 
-

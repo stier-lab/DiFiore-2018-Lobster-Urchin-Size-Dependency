@@ -18,17 +18,8 @@ source(here::here("code", "10a_clean-obsdata.R"))
         distinct(id)
       
       names <- as.vector(names$id)
-
-#----------------------------------------------------------------------------
-## Contrast 1: How do predictions of interaction strength that incorporate body size differ from predictions that ignore body size? AND How accurate are predictions of interaction strength based on published allometric scaling relationships relative to our experimental results? 
-#----------------------------------------------------------------------------
-
-# For this contrast we are NOT interested in spatio-temporal variation in density or body size. Therefore, we will use the average densities and body sizes across the SBC dataset.
-
-      s.avg
       
-      
-# This is a function for the allometric functional response:
+      # This is a function for the allometric functional response:
       
       allometricFR <- function(lob_mass, urc_mass, urc_density, lob_density, beta1a., beta2a., beta1h., beta2h., h0., a0., T = 1, ...){
         
@@ -40,115 +31,12 @@ source(here::here("code", "10a_clean-obsdata.R"))
         
       }
       
-# UNITS !!!!! All predictions of consumption rate should be in units of # of individual prey consumed per m2 per day!!!! 
+      # UNITS !!!!! All predictions of consumption rate should be in units of # of individual prey consumed per m2 per day!!!! 
       #- here we will make predictions based on the unit scale of the original data and then convert to consistent units afterwards
+      
+      post <- read.csv(here::here("data/cleaned/posteriors", "allometric_population.csv"
+      )) %>% as_tibble() %>% sample_draws(10000)
 
-# Scenario 1a. Allometric scaling based on experimental results
-
-post <- read.csv(here::here("data/cleaned/posteriors", "allometric_population.csv"
-)) %>% as_tibble() %>% sample_draws(10000) # predictions of consumption rate based on these posteriors will have units of # of prey consumed per hour per arena area (137/2 * 76 /10000)
-
-s.1a <- allometricFR(lob_mass = s.avg$mean_lob_mass, 
-                   urc_mass = s.avg$mean_urc_density, 
-                   lob_density = s.avg$mean_lob_density, 
-                   urc_density = s.avg$mean_urc_density,
-                   beta1a. = post$beta1.a, 
-                   beta2a. = post$beta2.a, 
-                   beta1h. = post$beta1.h, 
-                   beta2h. = post$beta2.h, 
-                   h0. = post$mu.alpha.h, 
-                   a0. = post$mu.alpha.a)
-
-s.1a <- s.1a*24/tsize # convert estimates to units of # of prey consumed per day per m2
-#s.1a <- s.1a/tsize
-
-# Scenario 1b. Allometric scaling based on literature review
-
-  # Construct distributions based on Rall et al. 2012, Uitterwaal and DeLong 2020, and first principles
-
-    # This is for Rall et al. 2012. Precictions will be in units of # of prey eaten per m2 per second
-s.1b.rall <- allometricFR(lob_mass = s.avg$mean_lob_mass, 
-                     urc_mass = s.avg$mean_urc_density, 
-                     lob_density = s.avg$mean_lob_density, 
-                     urc_density = s.avg$mean_urc_density,
-                     beta1a. = 0.85, 
-                     beta2a. = 0.09, 
-                     beta1h. = -0.76, 
-                     beta2h. = 0.76, 
-                     h0. = 10.38, 
-                     a0. = -21.23)
-
-s.1b.rall <- s.1b.rall*60*60*24
-
-  # This is for Barrios-Oneil. Predcitions will be in units of # of prey eaten per m2 per day BUT they make predictions based on maximum consumption rate so we need to modify the formula
-          allometricBO <- function(lob_mass, urc_mass, urc_density, lob_density, beta1a., beta2a., beta1h., beta2h., h0., a0., T = 1, ...){
-            
-            loga <- a0. + beta1a.*log(lob_mass) + beta2a.*log(urc_mass)
-            logC <- h0. + beta1h.*log(lob_mass) + beta2h.*log(urc_mass)
-            a <- exp(loga)
-            C <- exp(logC)
-            h <- 1/C
-            a*urc_density*lob_density*T / (1 + a*h*urc_density)
-            
-          }
-
-
-s.1b.BO <- allometricBO(lob_mass = s.avg$mean_lob_mass, 
-                          urc_mass = s.avg$mean_urc_density, 
-                          lob_density = s.avg$mean_lob_density, 
-                          urc_density = s.avg$mean_urc_density,
-                          beta1a. = 0.58, 
-                          beta2a. = 0.59, 
-                          beta1h. = 1.44, 
-                          beta2h. = 0.27, 
-                          h0. = -6.07 + 0.55 + 0.48, 
-                          a0. = -8.08 + -1.07)
-
-# This is for Uiterwaal and DeLong 2020. Precictions will be in units of # of prey eaten per m2 per second
-s.1b.UD <- allometricFR(lob_mass = s.avg$mean_lob_mass, 
-                          urc_mass = s.avg$mean_urc_density, 
-                          lob_density = s.avg$mean_lob_density, 
-                          urc_density = s.avg$mean_urc_density,
-                          beta1a. = 0.05, 
-                          beta2a. = -0.0005, 
-                          beta1h. = -0.25, 
-                          beta2h. = 0.34, 
-                          h0. = 0.83, 
-                          a0. = -8.45)
-
-
-
-# Scenario 1c. Ignore body size, a and h estimated from experimetnal data
-
-df.null <- read.csv(here::here("data/cleaned/posteriors", "posteriors_null.csv")) %>% as_tibble() %>% sample_draws(10000) # units here will be in # of prey eaten per hour per experimental unit
-
-s.1c <- allometricFR(lob_mass = s.avg$mean_lob_mass, 
-                     urc_mass = s.avg$mean_urc_density, 
-                     lob_density = s.avg$mean_lob_density, 
-                     urc_density = s.avg$mean_urc_density,
-                     beta1a. = 0, 
-                     beta2a. = 0, 
-                     beta1h. = 0, 
-                     beta2h. = 0, 
-                     h0. = log(df.null$h), 
-                     a0. = log(df.null$a))
-
-s.1c <- s.1c*24/tsize
-#s.1c <- s.1c/tsize
-
-
-plot(density(s.1a), type = "n", xlim = c(0, 0.1))
-polygon(density(s.1a), col = "wheat")
-#polygon(density(s.1c), col = "blue")
-abline(v = c(s.1b.rall, s.1b.BO, s.1b.UD))
-  # Based on what we see here, there doesn't seem to be much of a difference between the unstructured model and the size structured model. I think the reason for this is that the unstructured model isn't truely unstructured because it is fit to data that was generated by the foraging of a gradient of predator sizes and prey sizes. So this sort of makes sense that we don't see major differences. What is worrying me is that 3 different estimates from the literature all give comparible estimates of interaction strength BUT our results are orders of magnitude higher. I'm worried that this has something to do with my unit conversions. 
-
-
-
-plot(density(s.1c), type = "n", xlim = c(0, 0.004))
-polygon(density(s.1a), col = "wheat")
-polygon(density(s.1c), col = "blue")
-abline(v = c(s.1b.rall, s.1b.BO, s.1b.UD), col = c("red", "pink", "green"))
 
 #----------------------------------------------------------------------------
 ## Contrast 2:  What are the consequences of accounting for spatial and temporal variability in body size distributions?
@@ -181,55 +69,60 @@ s.2a_full <- s %>%
   separate(id, into = c("year", "site"), sep = "[-]") %>%
   mutate(prediction = prediction*24/tsize,
     estimate = "full")
+      
 
-
-#----------------------
-## Scenario 2b
-
-    # A number for each site/year
-#----------------------
-
-s.2b_mu <- s %>%
+s.2a_full_wparameter <- s %>%
   group_by(year, site) %>%
-  mutate(lob_mass = purrr::map_dbl(lob.mass, ~ mean(.x$mass)), 
-         urc_mass = purrr::map_dbl(urc.mass, ~ mean(.x$mass))) %>%
+  mutate(urc_mass = purrr::map(urc.mass, sample_n, 10000, replace = T), 
+         lob_mass = purrr::map(lob.mass, sample_n, 10000, replace = T)) %>%
   purrr::pmap(allometricFR, 
-              a0. = median(post$mu.alpha.a), 
-              h0. = median(post$mu.alpha.h), 
-              beta1a. = median(post$beta1.a), 
-              beta2a. = median(post$beta2.a), 
-              beta1h. = median(post$beta1.h), 
-              beta2h. = median(post$beta2.h))%>% 
+              a0. = post$mu.alpha.a, 
+              h0. = post$mu.alpha.h, 
+              beta1a. = post$beta1.a, 
+              beta2a. = post$beta2.a, 
+              beta1h. = post$beta1.h, 
+              beta2h. = post$beta2.h) %>% 
+  purrr::flatten() %>%
   set_names(names) %>%
   as_tibble() %>%
   gather(id, prediction) %>%
   separate(id, into = c("year", "site"), sep = "[-]") %>%
-  mutate(estimate = "mu")
+  mutate(prediction = prediction*24/tsize,
+         estimate = "full_wparameter")
 
 
-#----------------------
-## Scenario 2c 
+#---------------------------------------------------------------------------------
+## Scenario 2c: What happens when we use only the average sized predator or prey?
+#----------------------------------------------------------------------------------
 
-      #A NUMBER!
-#----------------------
-
-s.2c <- allometricFR(lob_mass = s.avg$mean_lob_mass, 
+      # This scenario we allow density to vary across sites
+s.2c_wdensity <- mean(allometricFR(lob_mass = s.avg$mean_lob_mass, 
                      urc_mass = s.avg$mean_urc_density, 
-                     lob_density = s.avg$mean_lob_density, 
-                     urc_density = s.avg$mean_urc_density,
+                     lob_density = s$lob_density, 
+                     urc_density = s$urc_density,
                      beta1a. = median(post$beta1.a), 
                      beta2a. = median(post$beta2.a), 
                      beta1h. = median(post$beta1.h), 
                      beta2h. = median(post$beta2.h), 
                      h0. = median(post$mu.alpha.h), 
-                     a0. = median(post$mu.alpha.a))
+                     a0. = median(post$mu.alpha.a))*24/tsize)
+      
+      # This scenario does NOT allow for density to vary between sites, density is set to the average
+s.2c_wmeandensity <- allometricFR(lob_mass = s.avg$mean_lob_mass, 
+                      urc_mass = s.avg$mean_urc_density, 
+                      lob_density = s.avg$mean_lob_density, 
+                      urc_density = s.avg$mean_urc_density,
+                      beta1a. = median(post$beta1.a), 
+                      beta2a. = median(post$beta2.a), 
+                      beta1h. = median(post$beta1.h), 
+                      beta2h. = median(post$beta2.h), 
+                      h0. = median(post$mu.alpha.h), 
+                      a0. = median(post$mu.alpha.a))*24/tsize
 
-s.2c <- s.2c*24/tsize
 
-
-#----------------------
-## Scenario 2d
-#----------------------
+#-----------------------------------------------------------------------
+## Scenario 2d: From the literature
+#------------------------------------------------------------------------
 
 # Rall
 s.2d_rall <- s %>%
@@ -291,37 +184,85 @@ s.2d_UD <- s %>%
   mutate(estimate = "UD")
 
 
-#----------------------
-## Scenario 2e
-#----------------------
-
-s.2e_unstructured <- s %>%
-  group_by(year, site) %>%
-  mutate(urc_mass = purrr::map(urc.mass, sample_n, 10000, replace = T), 
-         lob_mass = purrr::map(lob.mass, sample_n, 10000, replace = T)) %>%
-  purrr::pmap(allometricFR, 
-              a0. = log(median(df.null$a)), 
-              h0. = log(median(df.null$h)), 
-              beta1a. = 0, 
-              beta2a. = 0, 
-              beta1h. = 0, 
-              beta2h. = 0) %>% 
-  purrr::flatten() %>%
-  set_names(names) %>%
-  as_tibble() %>%
-  gather(id, prediction) %>%
-  separate(id, into = c("year", "site"), sep = "[-]") %>%
-  mutate(prediction = prediction*24/tsize,
-         estimate = "unstructured")
-
 
 
 #----------------------
 ## Combine and plot
 #----------------------
 
-df <- rbind(s.2a_full, s.2d_BO, s.2d_rall, s.2d_UD, s.2e_unstructured)
+df <- rbind(s.2a_full,s.2a_full_wparameter)
 
+plain <- function(x,...) {
+  format(x, ..., scientific = FALSE, trim = TRUE, drop0trailing = T)
+}
+
+sum <- data.frame(estimate = c("mean_s.2a", "median_s.2a", "s.2c_wdensity", "s.2c_wmeandensity", "s.2d_Rall", "s.2d_UD", "s.2d_BO"), prediction = c(mean(s.2a_full_wparameter$prediction), 
+                                 median(s.2a_full_wparameter$prediction),
+                                 s.2c_wdensity,
+                                 s.2c_wmeandensity,
+                                 mean(s.2d_rall$prediction), 
+                                 mean(s.2d_UD$prediction), 
+                                 mean(s.2d_BO$prediction)))
+
+sum2 <- filter(sum, estimate %in% c("mean_s.2a", "s.2c_wdensity", "s.2d_Rall", "s.2d_UD", "s.2d_BO"))
+
+library(calecopal)
+#chaparal1
+cal_palette("chaparral1")
+calecopal::chaparal1
+
+histo <- ggplot(s.2a_full_wparameter)+
+  geom_histogram(aes(x = prediction), alpha = 0.1, color = "black")+
+  geom_vline(data = sum2, aes(xintercept = prediction, color = estimate), show.legend = F, lwd = 1.5, linetype = 2, color = cal_palette("chaparral1", n = 5))+
+  scale_x_log10(labels = plain)+
+  annotate('text', x = sum2$prediction, y = 10000*c(4.75, 3.5, 3.5, 2, 4.5), label = c(
+    "bar(italic(f(mc,mr)))",
+    "italic(f(bar(mc), bar(mr)))", 
+    "Rall", 
+    "Uiterwaal", 
+    "BarriosONeill"), parse=T)+
+  labs(x = expression(paste("Interaction strength (ind. m"^-2,"d"^-1,")")), y = "Count")
+
+
+timeseries <- df %>% 
+  mutate(id = paste(year, site, sep = "")) %>%
+  group_by(year, site, estimate, id) %>%
+  mean_qi(prediction) %>% 
+  filter(estimate == "full_wparameter") %>%
+  ggplot(aes(x = as.numeric(year), y = prediction))+
+  geom_line(aes(color = site))+
+  geom_point(aes(color = site))+
+  scale_color_manual(values = c('#AF8DC3','#C3AF8D', '#c3958d', '#8DC3AF', '#c38db5'))+
+  labs(x = "", y = expression(paste("Interaction strength (ind. m"^-2,"h"^-1,")")), color = "Site")+
+  theme(legend.position = c(0.1, 0.8))
+
+p6b <- plot_grid(timeseries, histo, nrow = 1, align = "h", rel_widths = c(1,1.5))
+ggsave(here::here("figures/", "observational_alt2.png"), p6b, width = 8.21429*1.5, height = 3*1.5)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#---------------------------------------------------------------------------------------
+## Scrap
+#---------------------------------------------------------------------------------------
 
 ggplot(df)+
   geom_density(aes(x = prediction, fill = estimate))+
@@ -333,7 +274,7 @@ df %>% group_by(estimate) %>%
   mutate(.draw = 1:n()) %>%
   sample_draws(n = 10000) %>%
   ggplot()+
-    stat_sample_slabinterval(aes(x = estimate, y = prediction), .width = c(0.9,0.05), slab_type = "histogram")+
+  stat_sample_slabinterval(aes(x = estimate, y = prediction), .width = c(0.9,0.05), slab_type = "histogram")+
   scale_y_log10()
 
 
@@ -343,8 +284,8 @@ ggplot(df[df$estimate == "full",])+
   geom_density(aes(x = prediction))+
   geom_vline(xintercept = c(s.2c, mean(df$prediction[df$estimate == "full"])))+
   scale_x_log10()
-  
-  
+
+
 sum <- data.frame(estimate = c("mean_s.2a", "median_s.2a", "s.2c", "s.2d_Rall", "s.2d_UD", "s.2d_BO", "s.2e_unstructured"), 
                   prediction = c(mean(s.2a_full$prediction), 
                                  median(s.2a_full$prediction),
@@ -384,12 +325,6 @@ ggplot()+
   stat_pointinterval(data = p1, aes(x = estimate, y = prediction))+
   scale_y_log10()
 
-
-
-
-#---------------------------------------------------------------------------------------
-## Scrap
-#---------------------------------------------------------------------------------------
 
 
 
@@ -468,6 +403,221 @@ abline(lm(y~scale(x)))
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#----------------------------------------------------------------------------
+## Contrast 1: How do predictions of interaction strength that incorporate body size differ from predictions that ignore body size? AND How accurate are predictions of interaction strength based on published allometric scaling relationships relative to our experimental results? 
+#----------------------------------------------------------------------------
+
+# For this contrast we are NOT interested in spatio-temporal variation in density or body size. Therefore, we will use the average densities and body sizes across the SBC dataset.
+
+s.avg
+
+
+
+
+# Scenario 1a. Allometric scaling based on experimental results
+
+post <- read.csv(here::here("data/cleaned/posteriors", "allometric_population.csv"
+)) %>% as_tibble() %>% sample_draws(10000) # predictions of consumption rate based on these posteriors will have units of # of prey consumed per hour per arena area (137/2 * 76 /10000)
+
+s.1a <- allometricFR(lob_mass = s.avg$mean_lob_mass, 
+                     urc_mass = s.avg$mean_urc_density, 
+                     lob_density = s.avg$mean_lob_density, 
+                     urc_density = s.avg$mean_urc_density,
+                     beta1a. = post$beta1.a, 
+                     beta2a. = post$beta2.a, 
+                     beta1h. = post$beta1.h, 
+                     beta2h. = post$beta2.h, 
+                     h0. = post$mu.alpha.h, 
+                     a0. = post$mu.alpha.a)
+
+s.1a <- s.1a*24/tsize # convert estimates to units of # of prey consumed per day per m2
+#s.1a <- s.1a/tsize
+
+# Scenario 1b. Allometric scaling based on literature review
+
+# Construct distributions based on Rall et al. 2012, Uitterwaal and DeLong 2020, and first principles
+
+# This is for Rall et al. 2012. Precictions will be in units of # of prey eaten per m2 per second
+s.1b.rall <- allometricFR(lob_mass = s.avg$mean_lob_mass, 
+                          urc_mass = s.avg$mean_urc_density, 
+                          lob_density = s.avg$mean_lob_density, 
+                          urc_density = s.avg$mean_urc_density,
+                          beta1a. = 0.85, 
+                          beta2a. = 0.09, 
+                          beta1h. = -0.76, 
+                          beta2h. = 0.76, 
+                          h0. = 10.38, 
+                          a0. = -21.23)
+
+s.1b.rall <- s.1b.rall*60*60*24
+
+# This is for Barrios-Oneil. Predcitions will be in units of # of prey eaten per m2 per day BUT they make predictions based on maximum consumption rate so we need to modify the formula
+allometricBO <- function(lob_mass, urc_mass, urc_density, lob_density, beta1a., beta2a., beta1h., beta2h., h0., a0., T = 1, ...){
+  
+  loga <- a0. + beta1a.*log(lob_mass) + beta2a.*log(urc_mass)
+  logC <- h0. + beta1h.*log(lob_mass) + beta2h.*log(urc_mass)
+  a <- exp(loga)
+  C <- exp(logC)
+  h <- 1/C
+  a*urc_density*lob_density*T / (1 + a*h*urc_density)
+  
+}
+
+
+s.1b.BO <- allometricBO(lob_mass = s.avg$mean_lob_mass, 
+                        urc_mass = s.avg$mean_urc_density, 
+                        lob_density = s.avg$mean_lob_density, 
+                        urc_density = s.avg$mean_urc_density,
+                        beta1a. = 0.58, 
+                        beta2a. = 0.59, 
+                        beta1h. = 1.44, 
+                        beta2h. = 0.27, 
+                        h0. = -6.07 + 0.55 + 0.48, 
+                        a0. = -8.08 + -1.07)
+
+# This is for Uiterwaal and DeLong 2020. Precictions will be in units of # of prey eaten per m2 per second
+s.1b.UD <- allometricFR(lob_mass = s.avg$mean_lob_mass, 
+                        urc_mass = s.avg$mean_urc_density, 
+                        lob_density = s.avg$mean_lob_density, 
+                        urc_density = s.avg$mean_urc_density,
+                        beta1a. = 0.05, 
+                        beta2a. = -0.0005, 
+                        beta1h. = -0.25, 
+                        beta2h. = 0.34, 
+                        h0. = 0.83, 
+                        a0. = -8.45)
+
+
+
+# Scenario 1c. Ignore body size, a and h estimated from experimetnal data
+
+df.null <- read.csv(here::here("data/cleaned/posteriors", "posteriors_null.csv")) %>% as_tibble() %>% sample_draws(10000) # units here will be in # of prey eaten per hour per experimental unit
+
+s.1c <- allometricFR(lob_mass = s.avg$mean_lob_mass, 
+                     urc_mass = s.avg$mean_urc_density, 
+                     lob_density = s.avg$mean_lob_density, 
+                     urc_density = s.avg$mean_urc_density,
+                     beta1a. = 0, 
+                     beta2a. = 0, 
+                     beta1h. = 0, 
+                     beta2h. = 0, 
+                     h0. = log(df.null$h), 
+                     a0. = log(df.null$a))
+
+s.1c <- s.1c*24/tsize
+#s.1c <- s.1c/tsize
+
+
+plot(density(s.1a), type = "n", xlim = c(0, 0.1))
+polygon(density(s.1a), col = "wheat")
+#polygon(density(s.1c), col = "blue")
+abline(v = c(s.1b.rall, s.1b.BO, s.1b.UD))
+# Based on what we see here, there doesn't seem to be much of a difference between the unstructured model and the size structured model. I think the reason for this is that the unstructured model isn't truely unstructured because it is fit to data that was generated by the foraging of a gradient of predator sizes and prey sizes. So this sort of makes sense that we don't see major differences. What is worrying me is that 3 different estimates from the literature all give comparible estimates of interaction strength BUT our results are orders of magnitude higher. I'm worried that this has something to do with my unit conversions. 
+
+
+
+plot(density(s.1c), type = "n", xlim = c(0, 0.004))
+polygon(density(s.1a), col = "wheat")
+polygon(density(s.1c), col = "blue")
+abline(v = c(s.1b.rall, s.1b.BO, s.1b.UD), col = c("red", "pink", "green"))
+
+
+
+
+
+
+
+
+
+
+
+
+
+#----------------------
+## Scenario 2b
+
+# A number for each site/year
+#----------------------
+
+s.2b_mu <- s %>%
+  group_by(year, site) %>%
+  mutate(lob_mass = purrr::map_dbl(lob.mass, ~ mean(.x$mass)), 
+         urc_mass = purrr::map_dbl(urc.mass, ~ mean(.x$mass))) %>%
+  purrr::pmap(allometricFR, 
+              a0. = median(post$mu.alpha.a), 
+              h0. = median(post$mu.alpha.h), 
+              beta1a. = median(post$beta1.a), 
+              beta2a. = median(post$beta2.a), 
+              beta1h. = median(post$beta1.h), 
+              beta2h. = median(post$beta2.h))%>% 
+  set_names(names) %>%
+  as_tibble() %>%
+  gather(id, prediction) %>%
+  separate(id, into = c("year", "site"), sep = "[-]") %>%
+  mutate(estimate = "mu")
+
+
+
+
+#----------------------
+## Scenario 2e
+#----------------------
+
+s.2e_unstructured <- s %>%
+  group_by(year, site) %>%
+  mutate(urc_mass = purrr::map(urc.mass, sample_n, 10000, replace = T), 
+         lob_mass = purrr::map(lob.mass, sample_n, 10000, replace = T)) %>%
+  purrr::pmap(allometricFR, 
+              a0. = log(median(df.null$a)), 
+              h0. = log(median(df.null$h)), 
+              beta1a. = 0, 
+              beta2a. = 0, 
+              beta1h. = 0, 
+              beta2h. = 0) %>% 
+  purrr::flatten() %>%
+  set_names(names) %>%
+  as_tibble() %>%
+  gather(id, prediction) %>%
+  separate(id, into = c("year", "site"), sep = "[-]") %>%
+  mutate(prediction = prediction*24/tsize,
+         estimate = "unstructured")
 
 
 
