@@ -6,16 +6,14 @@ model{
 #-----------------------------------------------------------------------------
 
   # Population level prior on attack rate intercept
-    #mu.alpha.a ~ dnorm(-4.5, var.mu.alpha.a)
-    #mu.alpha.a ~ dnorm(0, var.mu.alpha.a)
-    #var.mu.alpha.a ~ dunif(0,10)
-    mu.alpha.a ~ dnorm(0, 0.01)
+    mu.alpha.a ~ dnorm(-4.5, var.mu.alpha.a)
+    var.mu.alpha.a ~ dunif(0,5)
 
-  # Individual level variation in alpha.a    
+  # Individual level variation in alpha.a
     for(i in 1:Nind){
       alpha.a[i] ~ dnorm(mu.alpha.a, var.a.ind)
       }
-    var.a.ind ~ dunif(0.5,2)
+    var.a.ind ~ dunif(0,10)
 
   # Allometric scaling exponents for attack rate
     beta1.a ~ dnorm(0.75, var.beta1.a)
@@ -27,11 +25,8 @@ model{
 #------------------------------------------------------------------------------
 
   # Population level prior on handling time intercept
-    #mu.alpha.h ~ dnorm(11, var.mu.alpha.h)
-    # mu.alpha.h ~ dnorm(0, var.mu.alpha.h)
-    # var.mu.alpha.h ~ dunif(0,10)
-
-    mu.alpha.h ~ dnorm(0, 0.01)
+    mu.alpha.h ~ dnorm(11, var.mu.alpha.h)
+    var.mu.alpha.h ~ dunif(0,5)
    
   # Individual level variation in handling time interpect 
     for(i in 1:Nind){
@@ -41,22 +36,28 @@ model{
 
   # Allometric scaling exponents for handling time
     beta1.h ~ dnorm(-0.75, var.beta1.h)
-    var.beta1.h ~ dgamma(5,1)
+    var.beta1.h ~ dgamma(10,1)
 
     beta2.h ~ dnorm(0.5, var.beta2.h)
-    var.beta2.h ~ dgamma(5,1)
+    var.beta2.h ~ dgamma(2,1)
 
     #var.beta1.h <- 10 # what happens when you crank down the variance on the prior, such that all of the probability mass is right around -0.75? The result is that the data is still able to overwhelm the prior!!! 
+
+#------------------------------------------------------------------------------
+var.a ~ dunif(0, 10)
+var.h ~ dunif(0, 10)
 
 #------------------------------------------------------------------------------
 
 # functional response likelihood
 
     for(i in 1:Nind){
-      log(a[i]) <- alpha.a[i] + beta1.a*log(mc[i]) + beta2.a*log(mr[i]) 
-      log(h[i]) <- alpha.h[i] + beta1.h*log(mc[i]) + beta2.h*log(mr[i]) 
+      log(a.vec[i]) <- alpha.a[i] + beta1.a*log(mc[i]) + beta2.a*log(mr[i])
+      a[i] ~ dnorm(a.vec[i], var.a)
+      log(h.vec[i]) <- alpha.h[i] + beta1.h*log(mc[i]) + beta2.h*log(mr[i])
+      h[i] ~ dnorm(h.vec[i], var.h)
       }
-    
+
     for(i in 1:n){
       killed[i] ~ dbin(prob[i],initial[i])
       prob[i] <- max(0.0001,min(0.9999,T/(1/a[id[i]] + h[id[i]]*initial[i])))

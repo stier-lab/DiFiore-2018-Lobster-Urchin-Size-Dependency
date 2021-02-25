@@ -244,16 +244,63 @@ ggsave(here::here("figures/", "observational_alt2.png"), p6b, width = 8.21429*1.
 
 
 
+# for SBC talk
+
+ggplot(s.2a_full_wparameter)+
+  geom_histogram(aes(x = prediction), alpha = 0.1, color = "black")+
+  scale_x_log10(labels = plain)+
+  labs(x = expression(paste("Interaction strength (ind. m"^-2,"d"^-1,")")), y = "Count")+
+  theme(text = element_text(size = 24), axis.text.x = element_text(size = 16))
+
+ggsave(filename = "figures/histo-bland.png", device = "png")
 
 
 
 
 
+s.2a_full_wparameter %>% 
+  mutate(mpa = ifelse(site %in% c("IVEE", "NAPL"), "MPA", "Fished")) %>%
+ggplot()+
+  geom_histogram(aes(x = prediction, fill = mpa), alpha = 0.75)+
+  scale_fill_manual(values = c("gray70", "gray10"))+
+  scale_x_log10(labels = plain)+
+  labs(x = expression(paste("Interaction strength (ind. m"^-2,"d"^-1,")")), y = "Count")+
+  facet_wrap(~year, nrow = 2)+
+  theme(text = element_text(size = 24))
+
+ggsave(filename = "figures/hist-mpaXyear.png", device = "png", width = 13.33, height = 6 )
 
 
+s.2a_full_wparameter %>% 
+  mutate(mpa = ifelse(site %in% c("IVEE", "NAPL"), "MPA", "Fished")) %>%
+  ggplot()+
+  geom_histogram(aes(x = prediction, fill = mpa), color = "black", alpha = 0.5)+
+  scale_fill_manual(values = c("gray70", "gray10"))+
+  scale_x_log10(labels = plain)+
+  labs(x = expression(paste("Interaction strength (ind. m"^-2,"d"^-1,")")), y = "Count")+
+  theme(text = element_text(size = 24))
+
+ggsave(filename = "figures/hist-mpa.png", device = "png")
+
+temp <- s.2a_full_wparameter %>% 
+  mutate(mpa = ifelse(site %in% c("IVEE", "NAPL"), "MPA", "Fished")) %>% 
+  group_by(mpa, year) %>% 
+  tidybayes::mean_qi(prediction)
+
+temp <- temp %>% 
+  group_by(mpa) %>%
+  mutate(delta = prediction - first(prediction), 
+         delta.low = .lower - first(.lower), 
+         delta.high = .upper - first(.upper))
 
 
+ggplot(temp, aes(x = as.numeric(year), y = prediction))+
+  geom_line(aes(color = mpa))
 
+
+ggplot(temp, aes(x = as.numeric(year), y = delta))+
+  geom_line(aes(color = mpa))+
+  geom_errorbar(aes(color = mpa, ymin = delta.low, ymax = delta.high))
 
 
 

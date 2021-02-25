@@ -39,23 +39,24 @@ p_sim <- function(N, mc, mr, data = df.pop){
   # prob <- 48/(1/a + h*N)
   # killed <- rbinom(length(prob), size = N, prob = prob)
   # return(killed)
-  
+  # 
 }
 
+
+# Change p_link to p_sim to account for between individual variation
 allometric_CI <- function(mc, mr, prob = 0.95, ...){
   temp.mr <- as.numeric(mr)
   temp.mc <- as.numeric(mc)
 
 N.vec <- seq(0, 26, length.out = 100)
-p_sim_output <- sapply(N.vec, function(i) p_sim(i, mc = temp.mc, mr = temp.mr))
+p_sim_output <- sapply(N.vec, function(i) p_link(i, mc = temp.mc, mr = temp.mr))
 p_mu <- apply(p_sim_output, 2 ,mean, na.rm = T)
 p_ci <- t(apply( p_sim_output , 2 , PI, prob = prob))
 
 return(data.frame(N = N.vec, mu = p_mu, mu.lower = p_ci[,1], mu.upper = p_ci[,2]))
 }
 
-predict <- expand.grid(mc = c(median(df$mc, na.rm = T), quantile(df$mc, probs = c(0.1, 0.9))), mr = unique(df$mr))
-#predict$treatment <- rep(c("Medium urchins", "Large urchins", "Small urchins"), each = 3)
+predict <- expand.grid(mc = c(median(df$mc, na.rm = T), quantile(df$mc, probs = c(0.1, 0.9), na.rm = T)), mr = unique(df$mr))
 
 forplot <- predict %>%
   purrr::pmap(allometric_CI) %>%
@@ -78,9 +79,12 @@ plot4 <- ggplot(df, aes(x = initial, y = killed))+
   geom_ribbon(data = forplot, aes(ymin = mu.lower, ymax = mu.upper, y = mu, group = lob.sizeclass), color = "gray", alpha = 0.25)+
   geom_line(data = forplot, aes(x = initial, y = mu, color = lob.sizeclass), size = 1.5)+
   scale_color_manual(values = rev(c('#d53e4f','#fc8d59','#fee08b')))+
-  facet_wrap(~treatment)+
+  facet_wrap(~treatment, labeller = as_labeller(c(urc_large = "Large", 
+                                                  urc_medium = "Medium", 
+                                                  urc_small = "Small")))+
   geom_hline(yintercept = 0, lty = 4, color = "gray25")+
-  labs(x = "Number of prey offered", y = "Number of prey consumed", color = "")
+  labs(x = "Number of prey offered", y = "Number of prey consumed", color = "Predator size", title = "Prey size class")+
+  theme(text = element_text(size = 14, face = "plain"), plot.title = element_text(face = "plain"))
 
 ggsave(here::here("figures/", "allometric_fr.png"), plot4, width = 10, height = 4)
 
@@ -97,35 +101,56 @@ tau.jags <- function(tau){
 }
 
 
-
-prior.beta1.h <- rnorm(length(df.pop$beta1.h), mean = -0.75, sd = tau.jags(rgamma(length(df.pop$beta1.h), shape = 5, rate = 1)))
+# Handling times
+prior.beta1.h <- rnorm(length(df.pop$beta1.h), mean = -0.75, sd = tau.jags(rgamma(length(df.pop$beta1.h), shape = 10, rate = 1))[2])
 plot(density(prior.beta1.h))
 
 
-prior.beta2.h <- rnorm(length(df.pop$beta1.h), mean = 0.75, sd = tau.jags(rgamma(length(df.pop$beta1.h), shape = 5, rate = 1)))
+prior.beta2.h <- rnorm(length(df.pop$beta1.h), mean = 0.5, sd = tau.jags(rgamma(length(df.pop$beta1.h), shape = 5, rate = 1))[2])
 plot(density(prior.beta2.h))
 
+prior.mualpha.h <- rnorm(length(df.pop$mu.alpha.h), mean = 11, sd = tau.jags(runif(length(df.pop$mu.alpha.h), min = 0, max = 5))[2])
+plot(density(prior.mu.alpha.h))
+
+# Attack rates
+prior.beta1.a <- rnorm(length(df.pop$beta1.a), mean = 0.75, sd = tau.jags(rgamma(length(df.pop$beta1.a), shape = 10, rate = 1))[2])
+plot(density(prior.beta1.a))
 
 
+prior.beta2.a <- rnorm(length(df.pop$beta2.a), mean = 0.5, sd = tau.jags(rgamma(length(df.pop$beta2.a), shape = 5, rate = 1))[2])
+plot(density(prior.beta2.a))
 
-df.plot <- data.frame(prior.beta1.h, posterior.beta1.h = df.pop$beta1.h, 
-                   prior.beta2.h, posterior.beta2.h = df.pop$beta2.h) %>%
+prior.mualpha.a <- rnorm(length(df.pop$mu.alpha.a), mean = -4.5, sd = tau.jags(runif(length(df.pop$mu.alpha.a), min = 0, max = 5))[2])
+plot(density(prior.mu.alpha.a))
+
+df.plot <- data.frame(prior.beta1.h, 
+                      posterior.beta1.h = df.pop$beta1.h, 
+                      prior.beta2.h, 
+                      posterior.beta2.h = df.pop$beta2.h,
+                      posterior.mualpha.h = df.pop$mu.alpha.h,
+                      prior.mualpha.h,
+                      prior.beta1.a, 
+                      prior.beta2.a, 
+                      prior.mualpha.a,
+                      posterior.beta1.a = df.pop$beta1.a, 
+                      posterior.beta2.a = df.pop$beta2.a, 
+                      posterior.mualpha.a = df.pop$mu.alpha.a) %>%
   gather(dist, value) %>%
   separate(dist, into = c("model", "scaling_exponent", "parameter"), sep = "[.]") %>%
   mutate(parameter = paste(scaling_exponent, parameter, sep = "."))
 
 meta <- df.plot %>% group_by(model, parameter) %>% 
   summarize(mean = mean(value))
-meta$text <- c(NA, NA, "MTE\n-0.75", "MTE\n0.75")
+meta$text <- c(NA, NA, "MTE\n-0.75", "FP\n0-1")
 
 p5 <- ggplot(df.plot, aes(x = value, fill = model))+
   geom_density(alpha = 0.5)+
-  facet_wrap(~parameter)+
-  coord_cartesian(xlim = c(-3, 2))+
-  geom_vline(data = meta, aes(xintercept = mean), lty = 4, color = "gray30")+
-  geom_text(data = meta, aes(x = c(0, 0, -0.3, 0.3), y = 4, label = text))+
+  facet_wrap(~parameter, nrow = 3, ncol = 2, scales = "free")#+
+  #coord_cartesian(xlim = c(-3, 2))+
+  #geom_vline(data = meta, aes(xintercept = mean), lty = 4, color = "gray30")+
+  #geom_text(data = meta, aes(x = c(0, 0, -0.3, 0.3), y = 4, label = text))+
   labs(x = "Allometric scaling exponent", y = "Density", fill = "")+
-  theme(legend.position = c(0.5,0.5))
+  #theme(legend.position = c(0.5,0.5))
 
 ggsave(here::here("figures/", "posterior-prior.png"), p5, width = 8, height = 3)
 
