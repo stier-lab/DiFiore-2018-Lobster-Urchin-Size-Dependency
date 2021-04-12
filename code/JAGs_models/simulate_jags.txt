@@ -1,5 +1,5 @@
 
-
+                 
                  model{
                  # PRIORS
                  
@@ -12,39 +12,25 @@
                  mu.h <- exp(max(min(mu.log.h, 20), -20))
                  
                  
-                 
-                 # Treatment level piors
-                 for(i in 1:Ntreats){
-                 #a
-                 t.logit.a[i] ~ dnorm(mu.logit.a, t.tau.a)
-                 t.a[i] <- exp(t.logit.a[i])/(1+exp(t.logit.a[i]))
-
-                 #h
-                 t.log.h[i] ~ dnorm(mu.log.h, t.tau.h)
-                 t.h[i] <- exp(max(min(t.log.h[i],20),-20))
-
-                 }
-                 
-                 
                  # Individual level piors
                  for(i in 1:num.ind){
                  
                  # a
-                 loga[i] ~ dnorm(t.logit.a[tind[i]], tau_int.a)
-                 a[i] <- exp(loga[i])/(1+exp(loga[i]))
+                 logit.a[i] ~ dnorm(mu.logit.a, tau_int.a)
+                 a[i] <- exp(logit.a[i])/(1+exp(logit.a[i]))
                  
                  # h
-                 logh[i] ~ dnorm(t.log.h[tind[i]], tau_int.h)
+                 logh[i] ~ dnorm(mu.log.h, tau_int.h)
                  h[i] <- exp(max(min(logh[i],10),-20))
                  }
                  
                  # functional response likelihood
                  
-                  for(i in 1:n){
+                 for(i in 1:n){
                  
-                  prob[i] <- max(0.0001,min(0.9999,T/(1/a[id[i]] + h[id[i]]*initial[i])))
+                 prob[i] <- max(0.0001,min(0.9999,T/(1/a[ind[i]] + h[ind[i]]*initial[i])))
                  
-                  killed[i] ~ dbin(prob[i],initial[i])
+                 killed[i] ~ dbin(prob[i],initial[i])
                  
                  }
                  
@@ -53,11 +39,6 @@
                  tau_int.a <- 1/(sigma_int.a*sigma_int.a)
                  sigma_int.h ~dunif(0,10)
                  tau_int.h <- 1/(sigma_int.h*sigma_int.h)
-                 
-                 sigma_t.a ~ dunif(0,10)
-                 t.tau.a <- 1/(sigma_t.a*sigma_t.a)
-                 sigma_t.h ~ dunif(0,10)
-                 t.tau.h <- 1/(sigma_t.h*sigma_t.h)
                  
                  sigma_mu.a ~ dunif(0,10)
                  mu.tau.a <- 1/(sigma_mu.a*sigma_mu.a)
