@@ -1,15 +1,9 @@
-library(here)
-library(tidyverse)
-library(rstan)
 
-sink(here::here("code/STAN_models/FR_allometric_noind.stan"))
-cat("
     data {
-    int<lower=1> N;
-    int<lower=0> killed[N];
-    int<lower=0> initial[N];
     int<lower=1> Nind;
-    int<lower=1> id[N]; // this will need to be character???
+    int<lower=0> Ndensities;
+    matrix[Nind, Ndensities] killed;
+    matrix[Nind, Ndensities] initial;
     real<lower=0> mc[Nind];
     real<lower=0> mr[Nind];
     }
@@ -37,23 +31,23 @@ cat("
     vector[Nind] logh;
     vector[Nind] a;
     vector[Nind] h;
-    real<lower=0, upper=1> prob[N];
-    
+    matrix[Nind, Ndensities]<lower=0, upper=1> prob;
+
     for(i in 1:Nind){
     loga[i] = alphaa + beta1a*log(mc[i]) + beta2a*log(mr[i]);
     a[i] = exp(loga[i]);
     logh[i] = alphah + beta1h*log(mc[i]) + beta2h*log(mr[i]);
     h[i] = exp(logh[i]);
+
+    for(j in 1:Ndensities){
+    prob[i,j] = 1/(1/a[i] + h[i]*initial[i,j]);
     }
-    
-    for(i in 1:N){
-    prob[i] = 1/(1/a[id[i]] + h[id[i]]*initial[i]);
-    }
-    
 
     }
     
-
+    }
+    
+    
     model {
     
     //priors
@@ -87,50 +81,9 @@ cat("
     varbeta2h ~ gamma(2,1);
     
     // likelihood
-
+    
     for(i in 1:N){
     killed[i] ~ binomial(initial[i], prob[i]);
     }
     
-    }",fill = TRUE)
-sink()
-
-
-gauss_model <- rstan::stan_model('code/STAN_models/FR_allometric_noind.stan')
-
-df <- read.table(here("data/cleaned","loburc_cleaned.csv"), header = T, sep = ",") %>%
-  arrange(id, treatment) %>%
-  drop_na(mc)
-
-meta <- distinct(df, id, mc, mr) %>% 
-  mutate(id = as.numeric(as.factor(id)))
-
-stan_data = list("initial"= df$initial,
-                 "killed" = df$killed,
-                 "N" = length(df$initial), 
-                 "mc" = meta$mc, 
-                 "mr" = meta$mr,
-                 "Nind" = length(unique(df$id)), 
-                 "id" = as.numeric(as.factor(df$id))
-) # named list
-
-stanfit_gauss <- sampling(gauss_model, data = stan_data, chains = 4, thin = 10,
-                          iter = 10000, seed = 2131231, control = list(adapt_delta = 0.85))
-
-temp <- stanfit_gauss %>%
-tidybayes::recover_types(df) %>%
-  tidybayes::spread_draws(alphaa, alphah, beta1a, beta2a, beta1h, beta2h)
-
-hist(temp$alphaa)
-hist(log(temp$alphah))
-hist(temp$beta1a)
-hist(temp$beta1h)
-
-
-pairs(stanfit_gauss, pars = c("beta1a", "beta2a", "alphaa"), las = 1)
-
-pairs(stanfit_gauss, pars = c("beta1h", "beta2h", "alphah"), las = 1)
-
-
-
-
+    }
