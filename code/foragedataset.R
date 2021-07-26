@@ -33,13 +33,15 @@ p1 <- forage %>% filter(exp(reslm1.2) > 10e-6, major_grouping_1 != "Rotifer") %>
 ggsave(filename = "figures/pres-p1.png", plot = p1, device = "png")
 
 p2 <- forage %>% filter(exp(reslm1.2) > 10e-6, major_grouping_1 != "Rotifer") %>%
-  ggplot(aes(y = reslm1.2, x = predator_mass_mg))+
-  geom_point(alpha = 0.75, size = 1.5)+
-  geom_smooth(method = "lm", col = "darkred")+
-  scale_x_log10(breaks = c(0.0001, 1, 100, 1000, 10000), labels = c(0.0001, 1, 100, 1000, 10000))+
+  ggplot(aes(y = reslm1.2, x = log(predator_mass_mg)))+
+  geom_point(alpha = 0.75, size = 2.5)+
+  geom_smooth(method = "lm", col = "darkred", lwd = 2)+
+  #scale_x_log10(breaks = c(0.0001, 1, 100, 100000), labels = c(0.0001, 1, 100, 10e5))+
   coord_cartesian(ylim = c(-10, 25))+
   labs(x = "Predator size (mg)", y = "Consumption rate")+
-  theme(text = element_text(size = 24))
+  theme_classic()+
+  theme(text = element_text(size = 30), 
+        axis.text = element_text(size = 24))
 
 ggsave(filename = "figures/pres-p2.png", plot = p2, device = "png")
 
@@ -52,7 +54,9 @@ p3 <- forage %>% filter(exp(reslm1.2) > 10e-6, major_grouping_1 != "Rotifer") %>
   scale_x_log10(breaks = c(0.0001, 1, 100, 1000, 10000), labels = c(0.0001, 1, 100, 1000, 10000))+
   coord_cartesian(ylim = c(-10, 25))+
   labs(x = "Predator size (mg)", y = "Consumption rate")+
-  theme(text = element_text(size = 24))
+  theme_classic()+
+  theme(text = element_text(size = 30), 
+        axis.text = element_text(size = 24))
 
 ggsave(filename = "figures/pres-p3.png", plot = p3, device = "png")
 
@@ -89,6 +93,34 @@ p4 <- forage %>% filter(exp(reslm1.2) > 10e-6, major_grouping_1 != "Rotifer") %>
   scale_x_log10(breaks = c(0.0001, 1, 100, 1000, 10000), labels = c(0.0001, 1, 100, 1000, 10000))+
   coord_cartesian(ylim = c(-10, 25))+
   labs(x = "Predator size (mg)", y = "Consumption rate")+
-  theme(text = element_text(size = 24))
+  theme_classic()+
+  theme(text = element_text(size = 30), 
+        axis.text = element_text(size = 24))
 
 ggsave(filename = "figures/pres-p4.png", plot = p4, device = "png")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

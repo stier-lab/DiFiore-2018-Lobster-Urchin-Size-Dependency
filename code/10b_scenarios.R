@@ -31,6 +31,18 @@ source(here::here("code", "10a_clean-obsdata.R"))
         
       }
       
+      # This is for Barrios-Oneil. Predcitions will be in units of # of prey eaten per m2 per day BUT they make predictions based on maximum consumption rate so we need to modify the formula
+      allometricBO <- function(lob_mass, urc_mass, urc_density, lob_density, beta1a., beta2a., beta1h., beta2h., h0., a0., T = 1, ...){
+        
+        loga <- a0. + beta1a.*log(lob_mass) + beta2a.*log(urc_mass)
+        logC <- h0. + beta1h.*log(lob_mass) + beta2h.*log(urc_mass)
+        a <- exp(loga)
+        C <- exp(logC)
+        h <- 1/C
+        a*urc_density*lob_density*T / (1 + a*h*urc_density)
+        
+      }
+      
       # UNITS !!!!! All predictions of consumption rate should be in units of # of individual prey consumed per m2 per day!!!! 
       #- here we will make predictions based on the unit scale of the original data and then convert to consistent units afterwards
       
@@ -89,35 +101,6 @@ s.2a_full_wparameter <- s %>%
   separate(id, into = c("year", "site"), sep = "[-]") %>%
   mutate(prediction = prediction*24/tsize,
          estimate = "full_wparameter")
-
-
-#---------------------------------------------------------------------------------
-## Scenario 2c: What happens when we use only the average sized predator or prey?
-#----------------------------------------------------------------------------------
-
-      # This scenario we allow density to vary across sites
-s.2c_wdensity <- mean(allometricFR(lob_mass = s.avg$mean_lob_mass, 
-                     urc_mass = s.avg$mean_urc_density, 
-                     lob_density = s$lob_density, 
-                     urc_density = s$urc_density,
-                     beta1a. = median(post$beta1.a), 
-                     beta2a. = median(post$beta2.a), 
-                     beta1h. = median(post$beta1.h), 
-                     beta2h. = median(post$beta2.h), 
-                     h0. = median(post$mu.alpha.h), 
-                     a0. = median(post$mu.alpha.a))*24/tsize)
-      
-      # This scenario does NOT allow for density to vary between sites, density is set to the average
-s.2c_wmeandensity <- allometricFR(lob_mass = s.avg$mean_lob_mass, 
-                      urc_mass = s.avg$mean_urc_density, 
-                      lob_density = s.avg$mean_lob_density, 
-                      urc_density = s.avg$mean_urc_density,
-                      beta1a. = median(post$beta1.a), 
-                      beta2a. = median(post$beta2.a), 
-                      beta1h. = median(post$beta1.h), 
-                      beta2h. = median(post$beta2.h), 
-                      h0. = median(post$mu.alpha.h), 
-                      a0. = median(post$mu.alpha.a))*24/tsize
 
 
 #-----------------------------------------------------------------------
@@ -183,7 +166,33 @@ s.2d_UD <- s %>%
   separate(id, into = c("year", "site"), sep = "[-]") %>%
   mutate(estimate = "UD")
 
+#---------------------------------------------------------------------------------
+## Scenario 2c: What happens when we use only the average sized predator or prey?
+#----------------------------------------------------------------------------------
 
+# This scenario we allow density to vary across sites
+s.2c_wdensity <- mean(allometricFR(lob_mass = s.avg$mean_lob_mass, 
+                                   urc_mass = s.avg$mean_urc_density, 
+                                   lob_density = s$lob_density, 
+                                   urc_density = s$urc_density,
+                                   beta1a. = median(post$beta1.a), 
+                                   beta2a. = median(post$beta2.a), 
+                                   beta1h. = median(post$beta1.h), 
+                                   beta2h. = median(post$beta2.h), 
+                                   h0. = median(post$mu.alpha.h), 
+                                   a0. = median(post$mu.alpha.a))*24/tsize)
+
+# This scenario does NOT allow for density to vary between sites, density is set to the average
+s.2c_wmeandensity <- allometricFR(lob_mass = s.avg$mean_lob_mass, 
+                                  urc_mass = s.avg$mean_urc_density, 
+                                  lob_density = s.avg$mean_lob_density, 
+                                  urc_density = s.avg$mean_urc_density,
+                                  beta1a. = median(post$beta1.a), 
+                                  beta2a. = median(post$beta2.a), 
+                                  beta1h. = median(post$beta1.h), 
+                                  beta2h. = median(post$beta2.h), 
+                                  h0. = median(post$mu.alpha.h), 
+                                  a0. = median(post$mu.alpha.a))*24/tsize
 
 
 #----------------------
@@ -221,7 +230,9 @@ histo <- ggplot(s.2a_full_wparameter)+
     "Rall", 
     "Uiterwaal", 
     "BarriosONeill"), parse=T)+
-  labs(x = expression(paste("Interaction strength (ind. m"^-2,"d"^-1,")")), y = "Count")
+  labs(x = expression(paste("Interaction strength (ind. m"^-2,"d"^-1,")")), y = "Count")+
+  theme_classic()+
+  theme(text = element_text(size = 18))
 
 
 timeseries <- df %>% 
@@ -234,15 +245,74 @@ timeseries <- df %>%
   geom_point(aes(color = site))+
   scale_color_manual(values = c('#AF8DC3','#C3AF8D', '#c3958d', '#8DC3AF', '#c38db5'))+
   labs(x = "", y = expression(paste("Interaction strength (ind. m"^-2,"h"^-1,")")), color = "Site")+
-  theme(legend.position = c(0.1, 0.8))
+  theme_classic()+
+  theme(legend.position = c(0.2, 0.75), text = element_text(size = 18), axis.text.y = element_text(size = 14))
 
 p6b <- plot_grid(timeseries, histo, nrow = 1, align = "h", rel_widths = c(1,1.5))
 ggsave(here::here("figures/", "observational_alt2.png"), p6b, width = 8.21429*1.5, height = 3*1.5)
 
 
+#------------------------------------------------------------------------------------
+## Contrast our prediction for interaction strength w/out body size to w/ body size
+#------------------------------------------------------------------------------------
+
+# To estimate how much of the variance in IS is due to density vs. body size, I propose fixing density to the regional averages. The variance in IS when density is fixed (i.e. no spatiotemporal variation) should represent the proportion of the total variance in IS due to density alone. 
+
+# Here I fix density to the regional averages. Therefore, the variance in IS estimated by this code will represent the variance due to variantion in BODY SIZE not density.
+s.2a_full_wparameter_nodensity <- s %>%
+  group_by(year, site) %>%
+  mutate(urc_mass = purrr::map(urc.mass, sample_n, 10000, replace = T), 
+         lob_mass = purrr::map(lob.mass, sample_n, 10000, replace = T)) %>%
+  ungroup() %>%
+  mutate(urc_density = mean(urc_density), 
+         lob_density = mean(lob_density)) %>%
+  purrr::pmap(allometricFR, 
+              a0. = post$mu.alpha.a, 
+              h0. = post$mu.alpha.h, 
+              beta1a. = post$beta1.a, 
+              beta2a. = post$beta2.a, 
+              beta1h. = post$beta1.h, 
+              beta2h. = post$beta2.h) %>% 
+  purrr::flatten() %>%
+  set_names(names) %>%
+  as_tibble() %>%
+  gather(id, prediction) %>%
+  separate(id, into = c("year", "site"), sep = "[-]") %>%
+  mutate(prediction = prediction*24/tsize,
+         estimate = "full_wparameter_nodensity")
 
 
+df2 <- rbind(s.2a_full_wparameter, s.2a_full_wparameter_nodensity)
 
+histo2 <- ggplot(df2)+
+  geom_histogram(aes(x = prediction, fill = estimate))+
+  labs(x = expression(paste("Interaction strength (ind. m"^-2,"d"^-1,")")), y = "Count")+
+  scale_x_log10(labels = plain)+
+  theme_classic()
+
+# calculate proportion of variance explained by body size
+var_bodysize <- var(s.2a_full_wparameter_nodensity$prediction)
+var_total <- var(s.2a_full_wparameter$prediction)
+
+var_bodysize / var_total # this equal the proportion of the total variance due to body size!!!
+
+1 - (var_bodysize / var_total) # this equals the proportion of the total variance due to density!!!
+
+proposal.plot <- ggplot(df2)+
+  geom_density(aes(x = prediction, fill = estimate), alpha = 0.5)+
+  labs(x = expression(paste("Interaction strength (ind. m"^-2,"d"^-1,")")), y = "Frequency", fill = "")+
+  scale_x_log10(labels = plain)+
+  scale_fill_discrete(labels = c("Variation in\nbody size and density", "Variation in\nbody size only"))+
+  theme_classic()+
+  theme(legend.position = c(0.25, 0.75), text = element_text(size = 18))
+
+ggsave(here::here("figures/", "poposal_histogram.png"), proposal.plot)
+
+proposal <- cowplot::plot_grid(NULL, timeseries, proposal.plot, histo, labels = "AUTO")
+ggsave(here::here("figures", "proposal_ch1.png"), proposal, width = 8.5*1.75, height = 8.5*0.65*1.75)
+
+
+#-------------------------------------------------------------
 
 # for SBC talk
 
@@ -617,6 +687,7 @@ abline(v = c(s.1b.rall, s.1b.BO, s.1b.UD), col = c("red", "pink", "green"))
 
 
 
+
 #----------------------
 ## Scenario 2b
 
@@ -666,5 +737,26 @@ s.2e_unstructured <- s %>%
   mutate(prediction = prediction*24/tsize,
          estimate = "unstructured")
 
+post.pop <- read.csv(here::here("data/cleaned/posteriors", "posteriors_population.csv"
+)) %>% as_tibble() %>% sample_draws(10000)
+
+FR <- function(a, h, urc_density, lob_density, T = 1, ...){
+  a*urc_density*lob_density*T / (1 + a*h*urc_density)
+  
+}
+
+
+s.nobodysize <- s %>%
+  select(year, site, urc_density, lob_density) %>%
+  group_by(year, site) %>%
+  purrr::pmap(FR, 
+              a = median(post.pop$mu.a), 
+              h = median(post.pop$mu.h)) %>% 
+  set_names(names) %>%
+  as_tibble() %>%
+  gather(id, prediction) %>%
+  separate(id, into = c("year", "site"), sep = "[-]") %>%
+  mutate(prediction = prediction*24/tsize,
+         estimate = "nobodysize")
 
 
