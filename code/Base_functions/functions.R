@@ -1,4 +1,21 @@
 ##########################################
+## SD to Precision conversion 
+##########################################
+
+sd2tau <- function(sd){
+  tau = 1/sd^2
+  tau
+}
+
+tau2sd <- function(tau){
+  sd = sqrt(1/tau)
+  sd
+}
+
+
+
+
+##########################################
 ## Functional Response Functions
 ##########################################
 

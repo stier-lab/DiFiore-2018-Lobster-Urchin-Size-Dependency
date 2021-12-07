@@ -1,0 +1,28 @@
+
+                 
+                 model{
+                 
+                 for(i in 1:n){
+                 
+                 y[i] ~ dnorm(mu[i], tauy)
+                 mu[i] <- alpha + beta1*mc[i] + beta2*mr[i]
+                 
+                 }
+                 
+                 #priors
+                 alpha ~ dnorm(0, 0.01)
+                 beta1 ~ dnorm(beta1.theory, tau.beta1)
+                 beta2 ~ dnorm(beta2.theory, tau.beta2)
+                 
+                 # priors on variance
+                 sigmay ~ dunif(0,10)
+                 tauy <- 1/(sigmay*sigmay)
+                 
+                 sigma.beta1 ~ dgamma(2,2)
+                 tau.beta1 <- 1/(sigma.beta1*sigma.beta1)
+                 
+                 sigma.beta2 ~ dgamma(2,2)
+                 tau.beta2 <- 1/(sigma.beta2*sigma.beta2)
+                 }
+                 
+                 

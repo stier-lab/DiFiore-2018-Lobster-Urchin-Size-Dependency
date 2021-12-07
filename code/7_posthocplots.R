@@ -10,15 +10,8 @@ source(here("code", "1_setup.R"))
 ## Get data
 #-------------------------------------------
 
-post.a <- read.csv(here::here("data/cleaned/posteriors", "posteriors_posthoc_a.csv")) %>%
-  spread(parameter,estimate) %>% filter(model == "model_wpuncert")
-post.h <- read.csv(here::here("data/cleaned/posteriors", "posteriors_posthoc_h.csv")) %>%
-  spread(parameter,estimate) %>% filter(model == "model_wpuncert")
-
-post.null <- read.csv(here::here("data/cleaned/posteriors", "posteriors_null.csv")) %>%
-  median_qi()
-post.mu <- read.csv(here::here("data/cleaned/posteriors", "posteriors_population.csv")) %>%
-  median_qi()
+post.a <- read.csv(here::here("data/cleaned/posteriors", "posteriors_posthoc_a.csv"))
+post.h <- read.csv(here::here("data/cleaned/posteriors", "posteriors_posthoc_h.csv"))
 
 meta <- read.csv(here::here("data/", "lob-metadata.csv"))
 
@@ -26,7 +19,7 @@ df <- read.csv(here::here("data/cleaned/posteriors", "posteriors_individuals.csv
   left_join(meta) %>%
   filter(id != "N07") %>%
   group_by(id) %>%
-  sample_draws(500)
+  sample_draws(100)
 
 
 forplot <- rbind(post_hoc_CI(mr = unique(df$mr)[1], data = post.h), post_hoc_CI(mr = unique(df$mr)[2], data = post.h), post_hoc_CI(mr = unique(df$mr)[3], data = post.h))
@@ -46,6 +39,7 @@ p1 <- ggplot(df, aes(x = mc, y = h))+
   scale_color_manual(values = c('#AF8DC3','#C3AF8D','#8DC3AF'))+
   geom_ribbon(data = forplot, aes(ymin = mu.lower, ymax = mu.upper), fill = "gray", alpha = 0.5)+
   scale_y_log10()+
+  scale_x_log10()+
   facet_wrap(~treatment)+
   labs(x = "Predator body mass (g)", y = "Handling time (h)", color = "")
 
@@ -66,6 +60,7 @@ p2 <- ggplot(df, aes(x = mc, y = a))+
   scale_color_manual(values = c('#AF8DC3','#C3AF8D','#8DC3AF'))+
   geom_ribbon(data = forplot.a, aes(ymin = mu.lower, ymax = mu.upper), fill = "gray", alpha = 0.5)+
   scale_y_log10()+
+  scale_x_log10()+
   facet_wrap(~treatment)+
   labs(x = "Predator body mass (g)", y = expression(paste("Attack rate (ind. m"^{-2},"h"^{-1},")")), color = "")
 
@@ -73,112 +68,150 @@ plot2 <- cowplot::plot_grid(p2, p1)
 
 ggsave(here::here("figures/", "posthoc-plot2.png"), plot2, width = 10, height = 5)
 
-#---------------------------------------------------------------------
-## Scrap
-#---------------------------------------------------------------------
 
 
-# Jensen's inequality exploration
-forplot <- rbind(post_hoc_CI(mr = unique(df$mr)[1], data = post.h), post_hoc_CI(mr = unique(df$mr)[2], data = post.h), post_hoc_CI(mr = unique(df$mr)[3], data = post.h))
-forplot$mr <- rep(unique(df$mr), each = 100)
-forplot$treatment <- rep(unique(df$treatment), each = 100)
-names(forplot)[1:2] <- c("mc", "h")
+# Alternate version of figure
 
-sum.forplot <- df %>% ungroup() %>% group_by(mc, treatment) %>%
-  median_qi(h, .width = c(0.75))
+forplot <- forplot %>% mutate(parameter = "h", 
+                   mu = h, 
+                   h = NULL) %>% 
+  bind_rows(forplot.a %>% mutate(parameter = "a", mu = a, a = NULL)) %>% 
+  as_tibble()
 
-# What is the expectation for an average sized lobster foraging on an average sized prey?
+sum.forplot <- df %>% 
+  pivot_longer(cols = c(a,h), names_to = "parameter", values_to = "posterior_estimate") %>%
+  group_by(parameter, mc, treatment) %>%
+  median_qi(posterior_estimate, .width = c(0.75))
 
-mean.lob = df %>% group_by(treatment) %>% summarize(mean = mean(mc))
-mean.lob  = mean(df$mc)
-mean.urc = df %>% group_by(treatment) %>% summarize(mean = mean(mr))
-mean.urc = mean(df$mr)
-
-
-f_x.bar = df %>% group_by(treatment) %>%
-  summarize(mean.lob = mean(mc),
-            mean.urc = mean(mr)) %>%
-  mutate(f_x.bar = exp(mean(post.h$alpha))*mean.lob^mean(post.h$beta1)*mean.urc^mean(post.h$beta2))
-
-
-f_x.bar <- mean(exp(post.h$alpha)*mean.lob^post.h$beta1*mean.urc^post.h$beta2)
-mean.f_x <- mean(forplot$h)
-
-mean.f_x <- forplot %>% group_by(treatment) %>% summarize(mean.f_x = mean(h))
-
-
-ggplot(df, aes(x = mc, y = h))+
-  geom_jitter(aes(color = treatment), shape = 1, alpha = 0.5)+
-  geom_pointinterval(data = sum.forplot, aes(x = mc, y = h), color = "gray")+
-  geom_point(data = sum.forplot, aes(x = mc, y = h), color = "black")+
-  geom_line(data = forplot, aes(x = mc, y = h, color = treatment))+
+df %>% 
+  pivot_longer(cols = c(a,h), names_to = "parameter", values_to = "posterior_estimate") %>%
+  ggplot(aes(x = mc, y = posterior_estimate))+
+  geom_point(aes(color = treatment), shape = 1, alpha = 0.5, show.legend = T)+
+  geom_point(data = sum.forplot, aes(x = mc, y = posterior_estimate), pch = 21, fill = "gray30")+
+  geom_line(data = forplot, aes( x= mc, y = mu, color = treatment), show.legend = T)+
   scale_color_manual(values = c('#AF8DC3','#C3AF8D','#8DC3AF'))+
-  geom_ribbon(data = forplot, aes(ymin = mu.lower, ymax = mu.upper), fill = "gray", alpha = 0.5)+
-  # Add in the unstructured and mu expectations!
-  geom_hline(data = post.null, aes(yintercept = h), color = "gray", linetype = "dashed")+
-  geom_hline(data = post.null, aes(yintercept = h.lower), color = "gray", linetype = "dashed") +
-  geom_hline(data = post.null, aes(yintercept = h.upper), color = "gray", linetype = "dashed") +
-  geom_hline(data = post.mu, aes(yintercept = mu.h), color = "gray")+
-  geom_hline(data = post.mu, aes(yintercept = mu.h.lower), color = "gray")+
-  geom_hline(data = post.mu, aes(yintercept = mu.h.upper), color = "gray")+
+  geom_ribbon(data = forplot, aes(ymin = mu.lower, ymax = mu.upper, y = mu, x = mc, group = treatment), fill = "gray", alpha = 0.5)+
   scale_y_log10()+
-  facet_wrap(~treatment)
+  scale_x_log10()+
+  facet_wrap(~ parameter, scales = "free")+
+  labs(x = "Predator body mass (g)", y = "Parameter", color = "")+
+  cowplot::theme_cowplot()
 
-forplot <- rbind(post_hoc_CI(mr = unique(df$mr)[1], data = post.a), post_hoc_CI(mr = unique(df$mr)[2], data = post.a), post_hoc_CI(mr = unique(df$mr)[3], data = post.a))
-forplot$mr <- rep(unique(df$mr), each = 100)
-forplot$treatment <- rep(unique(df$treatment), each = 100)
+# Version w/out facet wrap and correct axis labels
 
-sum.forplot <- df %>% ungroup() %>% group_by(mc, treatment) %>%
-  median_qi(a, .width = c(0.75))
-
-
-ggplot(df, aes(x = mc, y = a))+
-  geom_jitter(aes(color = treatment), shape = 1)+
-  geom_pointinterval(data = sum.forplot, aes(x = mc, y = a), color = "gray", fill = "black")+
-  geom_point(data = sum.forplot, aes(x = mc, y = a), color = "black")+
-  geom_line(data = forplot, aes(x = mc.seq, y = mu))+
+p1 <- df %>% 
+  ggplot(aes(x = mc, y = a))+
+  geom_point(aes(color = treatment), shape = 1, alpha = 0.5, show.legend = T)+
+  geom_point(data = sum.forplot[sum.forplot$parameter == "a",], aes(x = mc, y = posterior_estimate), pch = 21, fill = "gray30")+
+  geom_line(data = forplot[forplot$parameter == "a",], aes( x= mc, y = mu, color = treatment), show.legend = T)+
+  scale_color_manual(values = c('#AF8DC3','#C3AF8D','#8DC3AF'))+
+  geom_ribbon(data = forplot[forplot$parameter == "a", ], aes(ymin = mu.lower, ymax = mu.upper, y = mu, x = mc, group = treatment), fill = "gray", alpha = 0.5)+
   scale_y_log10()+
-  facet_wrap(~treatment)
+  scale_x_log10()+
+  labs(x = "Predator body mass (g)", y = expression(paste("Attack rate (",m^-2,h^-1,")")), color = "")+
+  cowplot::theme_cowplot()+
+  theme(legend.position = c(0.6, 0.2))
+
+p2 <- df %>% 
+  ggplot(aes(x = mc, y = h))+
+  geom_point(aes(color = treatment), shape = 1, alpha = 0.5, show.legend = T)+
+  geom_point(data = sum.forplot[sum.forplot$parameter == "h",], aes(x = mc, y = posterior_estimate), pch = 21, fill = "gray30")+
+  geom_line(data = forplot[forplot$parameter == "h",], aes( x= mc, y = mu, color = treatment), show.legend = T)+
+  scale_color_manual(values = c('#AF8DC3','#C3AF8D','#8DC3AF'))+
+  geom_ribbon(data = forplot[forplot$parameter == "h", ], aes(ymin = mu.lower, ymax = mu.upper, y = mu, x = mc, group = treatment), fill = "gray", alpha = 0.5)+
+  scale_y_log10()+
+  scale_x_log10()+
+  labs(x = "Predator body mass (g)", y = "Handling time (h)", color = "")+
+  cowplot::theme_cowplot()+
+  theme(legend.position = "none")
+
+cowplot::plot_grid(p1, p2)
+
+ggsave(here::here("figures/", "fig4_posthocandh.png"), plot2, width = 10, height = 5)
 
 
-#---------------------------------------------------------
+##-----------------------------
+# Posterior-prior comparisons
+##-----------------------------
+
+
+# On handling time
+nsim = 5000
+
+sigma.beta1 <- rgamma(nsim, 2,2)
+sigma.beta2 <- rgamma(nsim, 2,2)
+beta1 <- rnorm(nsim, mean = -0.75, sd = sigma.beta1)
+hist(beta1) # prior predictive distribution
+beta2 <- rnorm(nsim, mean = 0.50, sd = sigma.beta2 )
+alpha <- rnorm(nsim, 0, tau2sd(0.01))
+
+sigmay <- runif(nsim, 0, 10)
+tauy <- 1/(sigmay*sigmay)
+
+# mu <- alpha + beta1 + beta2
+# handling_time <- rnorm(nsim, mu, tauy)
+
+priors <- data.frame(beta1 = beta1,
+                     beta2 = beta2, 
+                     alpha = alpha) %>% 
+  pivot_longer(cols = c(beta1, beta2, alpha), names_to = "parameter", values_to = "prior_estimate")
+
+post.h %>% 
+  sample_draws(nsim) %>%
+  pivot_longer(cols = c(beta1, beta2, alpha), names_to = "parameter", values_to = "posterior_estimate") %>%
+  bind_cols(select(priors, prior_estimate)) %>%
+  pivot_longer(cols = c(posterior_estimate, prior_estimate)) %>%
+  mutate(name = case_when(
+    name == "posterior_estimate" ~ "posterior", 
+    name == "prior_estimate" ~ "prior"
+  ), 
+  name = forcats::fct_rev(name)) %>%
+  ggplot(aes(x = value))+
+  geom_density(aes(fill = name, y = ..scaled..), alpha = 1/2, color = NA)+
+  facet_wrap(~parameter, scales = "free")+
+  theme_classic()
+
+
+# On attack rate
+nsim = 5000
+
+sigma.beta1 <- rgamma(nsim, 2,2)
+sigma.beta2 <- rgamma(nsim, 2,2)
+beta1 <- rnorm(nsim, mean = beta1.theory, sd = sigma.beta1)
+hist(beta1) # prior predictive distribution
+beta2 <- rnorm(nsim, mean = beta2.theory, sd = sigma.beta2 )
+alpha <- rnorm(nsim, 0, tau2sd(0.01))
+
+sigmay <- runif(nsim, 0, 10)
+tauy <- 1/(sigmay*sigmay)
+
+priors <- data.frame(beta1 = beta1,
+                     beta2 = beta2, 
+                     alpha = alpha) %>% 
+  pivot_longer(cols = c(beta1, beta2, alpha), names_to = "parameter", values_to = "prior_estimate")
+
+post.a %>% 
+  sample_draws(nsim) %>%
+  pivot_longer(cols = c(beta1, beta2, alpha), names_to = "parameter", values_to = "posterior_estimate") %>%
+  bind_cols(select(priors, prior_estimate)) %>%
+  pivot_longer(cols = c(posterior_estimate, prior_estimate)) %>%
+  mutate(name = case_when(
+    name == "posterior_estimate" ~ "posterior", 
+    name == "prior_estimate" ~ "prior"
+  ), 
+  name = forcats::fct_rev(name)) %>%
+  ggplot(aes(x = value))+
+  geom_density(aes(fill = name, y = ..scaled..), alpha = 1/2, color = NA)+
+  facet_wrap(~parameter, scales = "free")+
+  theme_classic()
 
 
 
-calculate.CI <- function(mr, mc, prob = 0.95){
-  require(rethinking)
-  a <- exp(post.a$alpha)*mc^post.a$beta1*mr^post.a$beta2
-  h <- exp(post.h$alpha)*mc^post.h$beta1*mr^post.h$beta2
-  
-  predicted.k <- function(N){a*N/(1 + a*h*N)}
-  N.seq <- seq(0, 26)
-  mu <- sapply(N.seq, predicted.k)
-  
-  mu.median <- apply( mu , 2 , median ) # calculate the median predicted value for each N
-  mu.PI <- t(apply( mu , 2 , PI , prob=prob )) # calculate the credible interval for each value of N
-  
-  return(data.frame(N.seq = N.seq, mc = mc, mr = mr, mu = mu.median, mu.lower = mu.PI[,1], mu.upper = mu.PI[,2])) # return a data.frame to organize output!
-}
-
-ob <- read.table(here("data/cleaned","loburc_cleaned.csv"), header = T, sep = ",") %>%
-  arrange(id, treatment)
-
-forplot <- calculate.CI(mr = min(df$mr), mc = max(df$mc))
-
-out <- list()
-mt <- meta %>% drop_na(mc)
-for(i in 1:length(mt$id)){
-  out[[i]] <- calculate.CI(mr = mt$mr[i], mc = mt$mc[i])
-}
-# This applies names to each slot in the list.
-
-forplot <- bind_rows(out) %>% left_join(mt)
 
 
-ggplot(ob, aes(x = initial, y = killed/48))+
-  geom_jitter()+
-  geom_line(data = forplot, aes(x = N.seq, y = mu, color = as.factor(mc)), show.legend = F)+
-  facet_wrap(~treatment)
+
+
+
 
 
 
