@@ -5,10 +5,10 @@ model{
 
   # hyperprior
   
-      mu.logit.a ~ dnorm(-5.905784, mu.tau.a) # Dunn prior on attack rate
+      mu.logit.a ~ dnorm(logit.da, mu.tau.a) # Dunn prior on attack rate
       mu.a <- exp(mu.logit.a)/(1+exp(mu.logit.a))
   
-      mu.log.h ~ dnorm(2.878299, mu.tau.h) # Dunn prior on h
+      mu.log.h ~ dnorm(log.dh, mu.tau.h) # Dunn prior on h
       mu.h <- exp(max(min(mu.log.h, 20), -20))
       
   
