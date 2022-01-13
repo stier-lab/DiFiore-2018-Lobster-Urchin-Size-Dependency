@@ -13,6 +13,24 @@ source(here("code", "1_setup.R"))
 post.a <- read.csv(here::here("data/cleaned/posteriors", "posteriors_posthoc_a.csv"))
 post.h <- read.csv(here::here("data/cleaned/posteriors", "posteriors_posthoc_h.csv"))
 
+post.allometric <- read.csv(here::here("data/cleaned/posteriors", "allometric_population.csv"))
+
+    # Summary stats for paper
+      
+      post.a %>% pivot_longer(cols = c(alpha:beta2)) %>%
+        group_by(name) %>%
+        median_qi(value)
+      
+      post.h %>% pivot_longer(cols = c(alpha:beta2)) %>%
+        group_by(name) %>%
+        median_qi(value)
+      
+      post.allometric %>% pivot_longer(cols = c(mu.alpha.h:beta2.h)) %>%
+        group_by(name) %>%
+        median_qi(value)
+
+
+
 meta <- read.csv(here::here("data/", "lob-metadata.csv"))
 
 df <- read.csv(here::here("data/cleaned/posteriors", "posteriors_individuals.csv")) %>% 
@@ -125,9 +143,9 @@ p2 <- df %>%
   cowplot::theme_cowplot()+
   theme(legend.position = "none")
 
-cowplot::plot_grid(p1, p2)
+fig_s2 <- cowplot::plot_grid(p1, p2)
 
-ggsave(here::here("figures/", "fig4_posthocandh.png"), plot2, width = 10, height = 5)
+ggsave(here::here("figures/", "fig4_posthocandh.png"), fig_s2, width = 10, height = 5)
 
 
 ##-----------------------------

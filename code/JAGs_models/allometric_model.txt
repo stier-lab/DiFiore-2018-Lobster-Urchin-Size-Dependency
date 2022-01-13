@@ -7,6 +7,7 @@ model{
 
   # Population level prior on attack rate intercept
     mu.alpha.a ~ dnorm(-4.5, var.mu.alpha.a)
+    #mu.alpha.a ~ dnorm(0, var.mu.alpha.a)
     var.mu.alpha.a ~ dunif(0,5)
 
   # Individual level variation in alpha.a
@@ -26,6 +27,7 @@ model{
 
   # Population level prior on handling time intercept
     mu.alpha.h ~ dnorm(11, var.mu.alpha.h)
+    #mu.alpha.h ~ dnorm(0, var.mu.alpha.h)
     var.mu.alpha.h ~ dunif(0,5)
    
   # Individual level variation in handling time interpect 
@@ -44,18 +46,12 @@ model{
     #var.beta1.h <- 10 # what happens when you crank down the variance on the prior, such that all of the probability mass is right around -0.75? The result is that the data is still able to overwhelm the prior!!! 
 
 #------------------------------------------------------------------------------
-var.a ~ dunif(0, 10)
-var.h ~ dunif(0, 10)
-
-#------------------------------------------------------------------------------
 
 # functional response likelihood
 
     for(i in 1:Nind){
-      log(a.vec[i]) <- alpha.a[i] + beta1.a*log(mc[i]) + beta2.a*log(mr[i])
-      a[i] ~ dnorm(a.vec[i], var.a)
-      log(h.vec[i]) <- alpha.h[i] + beta1.h*log(mc[i]) + beta2.h*log(mr[i])
-      h[i] ~ dnorm(h.vec[i], var.h)
+      log(a[i]) <- alpha.a[i] + beta1.a*log(mc[i]) + beta2.a*log(mr[i])
+      log(h[i]) <- alpha.h[i] + beta1.h*log(mc[i]) + beta2.h*log(mr[i])
       }
 
     for(i in 1:n){

@@ -1,4 +1,4 @@
-variance.partition <- function(ndraws = 1000, .urcdensity, .lobdensity, .urcmass, .lobmass){
+variance.partition <- function(ndraws = 10000, .urcdensity, .lobdensity, .urcmass, .lobmass){
   
   full <- r.s %>%
     purrr::pmap(allometricFR,
@@ -13,7 +13,7 @@ variance.partition <- function(ndraws = 1000, .urcdensity, .lobdensity, .urcmass
     as_tibble() %>%
     gather(id, prediction) %>%
     separate(id, into = c("year", "site"), sep = "[-]") %>%
-    mutate(prediction = prediction*24/tsize,
+    mutate(prediction = prediction/2/tsize,
            estimate = "full")
   
   full_meanbodysize <- r.s %>%
@@ -32,7 +32,7 @@ variance.partition <- function(ndraws = 1000, .urcdensity, .lobdensity, .urcmass
     as_tibble() %>%
     gather(id, prediction) %>%
     separate(id, into = c("year", "site"), sep = "[-]") %>%
-    mutate(prediction = prediction*24/tsize,
+    mutate(prediction = prediction/2/tsize,
            estimate = "full_meanbodysize")
   
   df3 <- rbind(full, full_meanbodysize) %>% 
@@ -59,9 +59,14 @@ pred <- expand.grid(urcmass = seq(min(unnest(r.s, cols = c(urc_mass))$mass), max
 
 out <- vector()
 system.time(
+    out[1] <- variance.partition(.urcmass =  pred$urcmass[1], 
+                                 .lobmass = pred$lobmass[1])
+  )
+
+out <- vector()
+system.time(
   for(i in 1:dim(pred)[1]){
-    out[i] <- variance.partition(ndraws = 100, 
-                                .urcmass =  pred$urcmass[i], 
+    out[i] <- variance.partition(.urcmass =  pred$urcmass[i], 
                                 .lobmass = pred$lobmass[i])
   })
 
@@ -70,11 +75,13 @@ out
 summary(out)
 hist(out)
 # Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-# 0.1071  0.1452  0.1860  0.1710  0.1979  0.2019 
+# 0.08936 0.13289 0.13328 0.13311 0.13452 0.15305
 
-# Ok, so depending on which value of predator and prey size the proportion of variance in the full simulation explained by density ranges from ~10-20%. This suggests that variation in body size within and between sites explains ~80-90% of the variance in interaction strength. The conclusion that I draw from this is that failing to account for variation in body size will result in a loss of 80-90% of the actual variation in how strongly species interact. 
+# Ok, so depending on which value of predator and prey size the proportion of variance in the full simulation explained by density ranges from ~8-15%. This suggests that variation in body size within and between sites explains ~85-92% of the variance in interaction strength. The conclusion that I draw from this is that failing to account for variation in body size will result in a loss of 85-92% of the actual variation in how strongly species interact. 
 
+pred$out <- out
 
+write.csv(pred, file = "data/cleaned/posteriors/simulate_variancepartition.csv", quote = F, row.names = F)
 
 
 

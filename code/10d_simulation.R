@@ -58,9 +58,9 @@ sim <- data.frame(site = c("initial", "initial", "final", "final"),
                                   params$urcdensity_25*10, 
                                   params$urcdensity_25))
 
-fitdistrplus::fitdist(all_urcmass, "gamma", method = "mle")
+fitdist1 <- fitdistrplus::fitdist(all_urcmass, "gamma", method = "mle")
 
-urcmass <- rgamma(n = sim$urc_density[1]*10000, shape = 2.16242276, rate = 0.04654103)
+urcmass <- rgamma(n = sim$urc_density[1]*10000, shape = fitdist1$estimate[1], rate = fitdist1$estimate[2])
 hist(urcmass)
 summary(urcmass)
 summary(all_urcmass)
@@ -72,11 +72,13 @@ end_urcmass <- data.frame(group = rep(c("A", "B"), each = length(urcmass)),
 forjoin_urc <- rbind(start_urcmass, end_urcmass)
 
 
-fitdistrplus::fitdist(all_lobmass, "gamma", method = "mle")
-lobmass <- rgamma(n = sim$lob_density[1]*10000, shape = 3.555794038, rate = 0.008906552)
+fitdist2 <- fitdistrplus::fitdist(all_lobmass, "gamma", method = "mle")
+lobmass <- rgamma(n = sim$lob_density[1]*10000, shape = fitdist2$estimate[1], rate = fitdist2$estimate[2])
 hist(lobmass)
 summary(lobmass)
 summary(all_lobmass)
+hist(all_lobmass)
+
 
 start_lobmass <- expand.grid(group = c("A", "B"), lob_mass = lobmass) %>% mutate(site = "initial")
 end_lobmass <- data.frame(group = rep(c("A", "B"), each = length(lobmass)), 
@@ -106,11 +108,17 @@ output <- df.sim %>% #reproducible random draws from the size frequency distribu
   as_tibble() %>%
   gather(id, prediction) %>%
   separate(id, into = c("site", "group"), sep = "[-]") %>%
-  mutate(prediction = prediction*24/tsize)
+  mutate(prediction = prediction/2/tsize)
 
 output %>% group_by(site, group) %>% 
   summarize(mean = mean(prediction), 
             median = median(prediction))
+
+
+#final - initial / initial
+
+(0.00316 - 0.00312) / 0.00312
+(0.01416 - 0.00389) / 0.00389
 
 cal_palette("chaparral2", n = 6)
 
@@ -125,72 +133,26 @@ p3 <- output %>%
   scale_linetype_manual(values = c(4,1))+
   coord_cartesian(ylim = c(0, 0.02))+
   labs(y = expression(paste("Interaction strength (ind. m"^-2,"d"^-1,")")), x = "", fill = "", linetype = "")+
-  annotate(geom = "text", x = c(1.5, 1.5), y = c(0.0030, 0.0080), label = c("+0.3x", "+4.9x"))+
+  annotate(geom = "text", x = c(1.5, 1.5), y = c(0.0030, 0.0070), label = c("+1.3%", "+264%"))+
   theme_classic()+
   theme(text = element_text(size = 18), legend.position = c(0.2, 0.8))
 
-toprow = plot_grid(histo, p2+labs(y = ""), nrow = 1)
-bottomrow = plot_grid(NULL, p3, NULL, nrow = 1, rel_widths = c(0.2, 0.6, 0.2))
+toprow = plot_grid(p2, p3, nrow = 1)
+bottomrow = plot_grid(NULL, histo, NULL, nrow = 1, rel_widths = c(0.15, 0.7, 0.15))
 
 
 
 fig5 <- cowplot::plot_grid(toprow, bottomrow, nrow = 2)
-ggsave(filename = "figures/figure5_histos.png", plot = fig5, width = 8.5*2, height = 8.5*0.65*2)
-
-
-cowplot::plot_grid(histo, p2, NULL, NULL, p3, NULL, nrow = 2)
-
-
-correction <- data.frame(urc_mass = rgamma(n = sim$urc_density[3]*10000, shape = 2.16242276, rate = 0.04654103), site = "final", group = "A")
-
-forjoin_urc %>% 
-  filter(site == "initial" & group == "A") %>% 
-  bind_rows(correction) %>%
-  mutate(species = "urchin") %>%
-  as_tibble() %>%
-  rename(mass = urc_mass)%>%
-  bind_rows(forjoin_lob %>% mutate(species = "lobster")%>%
-              rename(mass = lob_mass)) %>%
-  filter(group == "A") %>%
-  ggplot(aes(x = mass))+
-  geom_histogram(aes(fill = species))+
-  facet_wrap(~site)
-
-
-forjoin_urc %>%
-  mutate(species = "urchin") %>%
-  as_tibble() %>%
-  rename(mass = urc_mass)%>%
-  bind_rows(forjoin_lob %>% mutate(species = "lobster")%>%
-              rename(mass = lob_mass)) %>%
-  filter(group == "B") %>%
-  ggplot(aes(x = mass))+
-  geom_histogram(aes(fill = species))+
-  facet_wrap(~site)
-
-
-forjoint_lob %>%
-  ggplot(aes(x = lob_mass))
+ggsave(filename = "figures/figure5_histos.png", plot = fig5, width = 8.5*1.5, height = 8.5*0.65*1.5)
 
 
 
 
 
-output %>% 
-  ggplot(aes(x = site, y = prediction, color = group))+
-  stat_summary(fun.data = "mean_cl_boot")
 
-output %>%
-  group_by(site, group) %>% 
-  summarize(mean = mean(prediction), 
-            sd = sd(prediction), 
-            se = sd(prediction)/n()) %>%
-  ggplot(aes(x = forcats::fct_rev(site), y = mean))+
-  geom_point(aes(color =  site))+
-  # geom_errorbar(aes(ymin = mean-se, ymax = mean+se), width = 0.1)+
-  geom_line(aes(linetype = group, group = group))+
-  labs(y = "Interaction strength", x = "")
-  
+
+
+
 
 
 

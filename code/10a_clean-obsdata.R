@@ -9,7 +9,9 @@ source("code/1_setup.R")
 
 # get the lte urchin size data
 
-urc.s <- read.csv(here("data/LTER", "LTE_Urchin_All_Years.csv"), header = T) %>% # get urchin size data for SBC LTER LTE transects.
+# data citation: Reed, D, R. Miller. 2021. SBC LTER: Reef: Long-term experiment: Kelp removal: Urchin size frequency distribution ver 21. Environmental Data Initiative. https://doi.org/10.6073/pasta/fd564dddfe7b77fe9e4bd8417f166057. Accessed 2022-01-03.
+
+urc.s <- read.csv(here("data/LTER", "LTE_Urchin_All_Years_20210209.csv"), header = T) %>% # get urchin size data for SBC LTER LTE transects.
   filter(TREATMENT == "CONTROL", COMMON_NAME == "Purple Urchin", YEAR > 2011) %>%
   dplyr::select(YEAR, MONTH, DATE, SITE, TRANSECT, SIZE, COUNT) %>% 
   na_if(-99999) %>%
@@ -40,7 +42,9 @@ urc.s <- urc.s %>%
 
 # get the community data
 
-urc.a <- read.csv(here("data/LTER", "Annual_All_Species_Biomass_at_transect.csv"), stringsAsFactors = F,na.strings ="-99999") %>%
+# data citation: Reed, D, R. Miller. 2021. SBC LTER: Reef: Annual time series of biomass for kelp forest species, ongoing since 2000 ver 10. Environmental Data Initiative. https://doi.org/10.6073/pasta/f1cf070648d7654ada052835afb2cfe9. Accessed 2022-01-03.
+
+urc.a <- read.csv(here("data/LTER", "Annual_All_Species_Biomass_at_transect_20210108.csv"), stringsAsFactors = F,na.strings ="-99999") %>%
   rename_all(tolower) %>%
   dplyr::select(year, month, site, transect, sp_code, density) %>%
   mutate(id = paste(site, transect, sep = "")) %>%
@@ -50,12 +54,15 @@ urc.a <- read.csv(here("data/LTER", "Annual_All_Species_Biomass_at_transect.csv"
 
 mean_urc_density <- mean(urc.a$urc_density)
 
+
 # Organize and clean lobster data
 
-lob <- read.csv(here("data/LTER", "Lobster_Abundance_All_Years.csv"), header = T) %>% # get lobster abundance and size data from LTER
-  na_if(-99999) %>% 
+# Data citation: Reed, D, R. Miller. 2021. SBC LTER: Reef: Abundance, size and fishing effort for California Spiny Lobster (Panulirus interruptus), ongoing since 2012 ver 6. Environmental Data Initiative. https://doi.org/10.6073/pasta/0bcdc7e8b22b8f2c1801085e8ca24d59. Accessed 2022-01-03.
+
+lob <- read.csv(here("data/LTER", "Lobster_Abundance_All_Years_20210412.csv"), header = T, na.strings = c(-99999), stringsAsFactors = F) %>% # get lobster abundance and size data from LTER
   rename_all(tolower) %>%
   filter(site %in% sites) %>% 
+  filter(size_mm != 600) %>% # get rid of the size error for one lobster
   dplyr::select(year, month, site, transect, replicate, size_mm, count)
 
 lob.a <- lob %>%
@@ -98,6 +105,21 @@ s.avg <- list(mean_lob_density = mean_lob_density,
               mean_urc_mass = mean_urc_mass)
 
 
+#------------------------------------
+## Summary stats for P1 of results
+#------------------------------------
+
+summary(s$urc_density)
+# mean 6.499
+rethinking::PI(s$urc_density, 0.95)
+# 3%        98% 
+#   0.8077381 27.8104167 
+
+summary(s$lob_density)
+# mean 0.027367
+rethinking::PI(s$lob_density, 0.95)
+# 3%         98% 
+#   0.003666667 0.096909722 
 
 
 

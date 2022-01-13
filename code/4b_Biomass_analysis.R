@@ -18,6 +18,34 @@ df <- read.table(here("data/cleaned","loburc_cleaned.csv"), header = T, sep = ",
   ungroup() %>%
   mutate(treatment.clean = recode(treatment, urc_small = "Small\nurchins", urc_medium = "Medium\nurchins", urc_large = "Large\nurchins") )
 
+#-----------------------------------------
+## Summary stats for P2 and P3 of results
+#-----------------------------------------
+
+temp <- df %>% 
+  filter(treatment == "urc_small") %>%
+  group_by(id) %>%
+  filter(initial == max(initial)) %>%
+  ungroup() %>%
+  filter(size == max(size) | size == min(size))
+
+# the relative change in proportion killed of small urchins at max density from the smallest lobster to the largest lobster
+(temp$prop.m.kill[temp$id == "Monster"] - temp$prop.m.kill[temp$id == "SCI01"]) / temp$prop.m.kill[temp$id == "SCI01"]
+
+# Across all densities only the largest lobsters regularly consumed the largest urchins, and 0.0X% of large urchins were consumed by lobster less than XXX g.
+
+df %>%
+  filter(treatment == "urc_large") %>%
+  filter(mc <= median(mc)) %>% 
+  summarize(initial = sum(initial), 
+            killed = sum(killed))
+
+2/358
+
+
+#---------------------------
+## Frequentist version
+#---------------------------
 
 mf <- df %>% mutate(m.intr = round(m.int, 0), 
               m.killr = round(m.kill, 0))
@@ -69,23 +97,28 @@ ggsave(here::here("figures/", "biomass-maxconsumption.png"), ps1, width = 8, hei
 ## Bayesian version using RStanArm
 #---------------------------------------------------------------------------------
 
-stan1 <- rstanarm::stan_glm(res ~ mc * treatment, data = mf, family = binomial(link = "logit"))
+stan1 <- rstanarm::stan_glm(cbind(mf$m.killr, mf$m.intr-mf$m.killr) ~ mc * treatment, data = mf, family = binomial(link = "logit"))
 plot(stan1)
 launch_shinystan(stan1)
 
+get_variables(stan1)
+
+
+mod.predict <- ggeffects::ggpredict(stan1, terms = "treatment")
 
 p1 <- ggplot(mf, aes(x = treatment, y = prop.m.kill))+
-  geom_boxplot(aes(fill = treatment), outlier.shape = NA)+
   scale_fill_manual(values = c('#AF8DC3','#C3AF8D','#8DC3AF') )+
   geom_jitter(aes(shape = treatment, fill = treatment), color = "white", size = 2, width = 0.25)+
   scale_shape_manual(values = c(21,23,24))+
+  geom_pointinterval(data = mod.predict, aes(x = x, y = predicted, ymin = conf.low, ymax = conf.high, shape = x), size = 5)+
   labs(x = "Urchin size", y = expression(paste("Proportion of biomass eaten (g g"^"-1", ")")), fill = "Urchin size", shape = "Urchin size")+
   scale_x_discrete(labels = c("Large", "Medium", "Small"))+
+  theme_classic()+
   theme(legend.position = "none")
 
 p2 <- mf %>%
   group_by(treatment) %>%
-  data_grid(mc = seq_range(mc, n = 51)) %>%
+  modelr::data_grid(mc = modelr::seq_range(mc, n = 51)) %>%
   add_fitted_draws(stan1) %>%
   ggplot(aes(x = mc, y = prop.m.kill, color = treatment, fill = treatment)) +
   stat_lineribbon(aes(y = .value), .width = 0.95, fill = "grey90") +
@@ -94,6 +127,7 @@ p2 <- mf %>%
   scale_color_manual(values = c('#AF8DC3','#C3AF8D','#8DC3AF'), labels = c("Large", "Medium", "Small"))+
   scale_fill_manual(values = c('#AF8DC3','#C3AF8D','#8DC3AF'), labels = c("Large", "Medium", "Small"))+
   labs(x = "Predator body size (g)", y = expression(paste("Proportion of biomass eaten (g g"^"-1", ")")), color = "Urchin size", fill = "Urchin size", shape = "Urchin size")+
+  theme_classic()+
   theme(legend.position = c(0.7, 0.8))
 
 p2_bayes <- cowplot::plot_grid(p1, p2+labs(y = ""), align = "h", nrow = 1, rel_widths = c(0.5, 1))  
