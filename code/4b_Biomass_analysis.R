@@ -1,6 +1,7 @@
 library(here)
 source(here("code", "1_setup.R"))
 source(here("code", "Base_functions/functions.R"))
+source(here("code", "theme.R"))
 
 
 #####################################
@@ -48,7 +49,8 @@ df %>%
 #---------------------------
 
 mf <- df %>% mutate(m.intr = round(m.int, 0), 
-              m.killr = round(m.kill, 0))
+              m.killr = round(m.kill, 0)) %>%
+  group_by(id)
 
 res <- cbind(mf$m.killr, mf$m.intr-mf$m.killr)
 
@@ -97,42 +99,141 @@ ggsave(here::here("figures/", "biomass-maxconsumption.png"), ps1, width = 8, hei
 ## Bayesian version using RStanArm
 #---------------------------------------------------------------------------------
 
-stan1 <- rstanarm::stan_glm(cbind(mf$m.killr, mf$m.intr-mf$m.killr) ~ mc * treatment, data = mf, family = binomial(link = "logit"))
+stan1 <- rstanarm::stan_glm(cbind(m.killr, m.intr-m.killr) ~ mc + treatment, data = mf, family = binomial(link = "logit"))
 plot(stan1)
 launch_shinystan(stan1)
 
 get_variables(stan1)
+prior_summary(stan1)
 
+mod.predict <- ggeffects::ggpredict(stan1, terms = ~treatment)
 
-mod.predict <- ggeffects::ggpredict(stan1, terms = "treatment")
+mod.predict <- mod.predict %>% as.data.frame() %>%
+  rename(treatment = x)
 
 p1 <- ggplot(mf, aes(x = treatment, y = prop.m.kill))+
   scale_fill_manual(values = c('#AF8DC3','#C3AF8D','#8DC3AF') )+
-  geom_jitter(aes(shape = treatment, fill = treatment), color = "white", size = 2, width = 0.25)+
+  scale_color_manual(values = c('#AF8DC3','#C3AF8D','#8DC3AF') )+
+  geom_jitter(aes(shape = treatment, fill = treatment, color = treatment), size = 2, alpha = 0.5)+
   scale_shape_manual(values = c(21,23,24))+
-  geom_pointinterval(data = mod.predict, aes(x = x, y = predicted, ymin = conf.low, ymax = conf.high, shape = x), size = 5)+
+  geom_pointinterval(data = mod.predict, aes(x = treatment, y = predicted, ymin = conf.low, ymax = conf.high, shape = treatment, fill = treatment), size = 7.5)+
   labs(x = "Urchin size", y = expression(paste("Proportion of biomass eaten (g g"^"-1", ")")), fill = "Urchin size", shape = "Urchin size")+
   scale_x_discrete(labels = c("Large", "Medium", "Small"))+
-  theme_classic()+
+  theme_bd()+
   theme(legend.position = "none")
 
-p2 <- mf %>%
-  group_by(treatment) %>%
-  modelr::data_grid(mc = modelr::seq_range(mc, n = 51)) %>%
-  add_fitted_draws(stan1) %>%
-  ggplot(aes(x = mc, y = prop.m.kill, color = treatment, fill = treatment)) +
-  stat_lineribbon(aes(y = .value), .width = 0.95, fill = "grey90") +
-  geom_point(data = df, aes(shape = treatment)) +
+
+mod.predict <- ggeffects::ggpredict(stan1, terms = ~mc + treatment)
+plot(mod.predict)
+
+mod.predict <- mod.predict %>% as.data.frame() %>%
+  rename(mc = x,
+         treatment = group)
+
+p2 <- ggplot(mf, aes(x = mc, y = prop.m.kill, color = treatment))+
+  geom_point(data = mf, aes(shape = treatment, fill = treatment), size = 2, alpha = 0.5) +
+  geom_ribbon(data = mod.predict, aes(x = mc, y = predicted, ymin = conf.low, ymax = conf.high, group = treatment), fill = "black", alpha = 0.25, color = "transparent")+
+  geom_line(data = mod.predict, aes(x = mc, y = predicted, color = treatment), lwd = 1.5)+
   scale_shape_manual(values = c(21,23,24), labels = c("Large", "Medium", "Small"))+
   scale_color_manual(values = c('#AF8DC3','#C3AF8D','#8DC3AF'), labels = c("Large", "Medium", "Small"))+
   scale_fill_manual(values = c('#AF8DC3','#C3AF8D','#8DC3AF'), labels = c("Large", "Medium", "Small"))+
   labs(x = "Predator body size (g)", y = expression(paste("Proportion of biomass eaten (g g"^"-1", ")")), color = "Urchin size", fill = "Urchin size", shape = "Urchin size")+
-  theme_classic()+
-  theme(legend.position = c(0.7, 0.8))
+  theme_bd()
 
-p2_bayes <- cowplot::plot_grid(p1, p2+labs(y = ""), align = "h", nrow = 1, rel_widths = c(0.5, 1))  
 
-ggsave(filename = here::here("figures/", "p2_bayesian.png"), plot = p2_bayes, device = "png", width = 8.5, height = 8.5/2)
+p2_bayes <- cowplot::plot_grid(p1, p2+labs(y = ""), align = "vh", nrow = 1, rel_widths = c(0.5, 1), axis = "bl") 
+
+p2_bayes
+ggsave(filename = here::here("figures/", "p2_bayesian.png"), plot = p2_bayes, device = "png", width = 10, height = 10/2)
+
+
+#----------------------------------------------------------
+## Alternative versions of the figure
+#----------------------------------------------------------
+temp <- mf %>%
+  group_by(id, size, treatment) %>%
+  filter(m.int == max(m.int))
+
+mod1 <- lm(m.kill ~ mc * treatment, data = temp)
+summary(mod1)
+
+pred <- ggeffects::ggpredict(mod1, terms = ~mc*treatment) %>%
+  as.data.frame() %>%
+  rename(mc = x, 
+         treatment = group)
+
+p1 <- mf %>%
+  group_by(id, size, treatment) %>%
+  filter(initial == max(initial)) %>%
+  ggplot(aes(x = treatment, y = m.kill, color = treatment))+
+  geom_jitter(aes(shape = treatment, fill = treatment), size = 2, alpha = 0.5)+
+  stat_summary(fun = "mean", geom = "point", size = 5, aes(shape = treatment, fill = treatment))+
+  scale_shape_manual(values = c(21,23,24), labels = c("Large", "Medium", "Small"))+
+  scale_color_manual(values = c('#AF8DC3','#C3AF8D','#8DC3AF'), labels = c("Large", "Medium", "Small"))+
+  scale_fill_manual(values = c('#AF8DC3','#C3AF8D','#8DC3AF'), labels = c("Large", "Medium", "Small"))+
+  labs(x = "Predator body size (g)", y = "Biomass of urchins consumed", color = "Urchin size", fill = "Urchin size", shape = "Urchin size")+
+  theme_bd()
+
+p2 <- mf %>%
+  group_by(id, size, treatment) %>%
+  filter(m.int == max(m.int)) %>%
+  ggplot(aes(x = mc, y = m.kill, color = treatment))+
+  geom_point(aes(shape = treatment, fill = treatment), size = 2) +
+  geom_ribbon(data = pred, aes(x = mc, y = predicted, ymin = conf.low, ymax = conf.high, group = treatment), fill = "black", alpha = 0.1, color = "transparent")+
+  geom_line(data = pred, aes(x = mc, y = predicted, color = treatment), lwd = 1.5)+
+  scale_shape_manual(values = c(21,23,24), labels = c("Large", "Medium", "Small"))+
+  scale_color_manual(values = c('#AF8DC3','#C3AF8D','#8DC3AF'), labels = c("Large", "Medium", "Small"))+
+  scale_fill_manual(values = c('#AF8DC3','#C3AF8D','#8DC3AF'), labels = c("Large", "Medium", "Small"))+
+  labs(x = "Predator body size (g)", y = "Biomass of urchins consumed", color = "Urchin size", fill = "Urchin size", shape = "Urchin size")+
+  theme_bd()
+
+cowplot::plot_grid(p1+theme(legend.position = "none"), p2, rel_widths = c(0.5, 1))
+
+
+mf %>%
+  group_by(id, size, treatment) %>%
+  filter(m.int == max(m.int)) %>%
+  mutate(m.kill_div_mc = m.kill/mc) %>%
+  ggplot(aes(x = mc, y = m.kill_div_mc, color = treatment))+
+  geom_point(aes(shape = treatment, fill = treatment), size = 2, alpha = 0.5) +
+  geom_smooth(method = "lm", aes(group = treatment))+
+  scale_shape_manual(values = c(21,23,24), labels = c("Large", "Medium", "Small"))+
+  scale_color_manual(values = c('#AF8DC3','#C3AF8D','#8DC3AF'), labels = c("Large", "Medium", "Small"))+
+  scale_fill_manual(values = c('#AF8DC3','#C3AF8D','#8DC3AF'), labels = c("Large", "Medium", "Small"))+
+  labs(x = "Predator body size (g)", y = "Biomass of urchins consumed / Biomass of lobster", color = "Urchin size", fill = "Urchin size", shape = "Urchin size")+
+  theme_bd()
+
+
+
+
+mf %>%
+  group_by(id, size, treatment) %>%
+  filter(initial == max(initial)) %>%
+  mutate(m.kill_div_mc = m.kill/mc) %>%
+  ggplot(aes(x = treatment, y = m.kill_div_mc, color = treatment))+
+  geom_jitter(aes(shape = treatment, fill = treatment), size = 2, alpha = 0.5)+
+  stat_summary(fun = "mean", geom = "point")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
