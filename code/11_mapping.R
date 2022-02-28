@@ -1,4 +1,5 @@
 source("code/10b_scenarios.R")
+source("code/theme.R")
 
 library(raster)
 library(sf)
@@ -57,9 +58,9 @@ zoom_map <- ggplot()+
   geom_contour(data = filter(depth.df, z < 10), aes(x = x, y = y, z = z), color = "black", binwidth = 100, alpha = 0.25)+
   geom_sf(data = shore_small, fill = "#596778", lwd = 0.01)+
   geom_sf(data = patches, fill = alpha("#00802b", 0.9), col = alpha("#00802b", 0))+
-  geom_sf(data = sites, aes(size = prediction + .upper), alpha = 0.1)+
-  geom_sf(data = sites, aes(size = prediction, color = site, alpha = 0.95), show.legend = F)+
-  scale_size(range = c(5,25))+
+  geom_sf(data = sites, aes(size = .upper), alpha = 0.1, show.legend = F)+
+  geom_sf(data = sites, aes(size = prediction, color = site), alpha = 0.5, show.legend = T)+
+  scale_size(range = c(5,50), breaks = c(0.0025, 0.005, 0.0075))+
   scale_color_manual(values = sites.col)+
   labs(x = "", y = "", size = "")+
   coord_sf(xlim = c(-120.7, -119.25), ylim = c(33.8, 34.65), expand = F)+
@@ -74,6 +75,8 @@ zoom_map <- ggplot()+
 
 
 ggsave(filename = here::here("figures/ggmap.png"),plot = zoom_map, device = "png", width = 12*0.85, height = 8*0.85)
+
+ggsave(filename = here::here("figures/ggmap.svg"),plot = zoom_map, device = "svg", width = 12*0.85, height = 8*0.85)
 
 
 
@@ -131,7 +134,7 @@ p.wide <- ggplot() +
   geom_contour(data = filter(depth.df, z < 0), aes(x = x, y = y, z = z), color = "black", alpha = 0.25, breaks = breaks)+
   geom_sf(data = shore, fill = "#596778", color = "#596778") + 
   coord_sf(expand = F)+
-  geom_sf(data = clipper_small, color = "red", fill = NA, lwd = 1)+
+  #geom_sf(data = clipper_small, color = "red", fill = NA, lwd = 1)+
   scale_x_continuous(breaks = -1*c(122, 116, 110))+
   scale_y_continuous(breaks = c(22, 26, 30, 34))+
   labs(x = "", y = "")+
@@ -152,16 +155,27 @@ sites.name <- unique(full$site)
 for(i in 1:length(sites.name)){
   forplot %>% filter(site == sites.name[i]) %>%
     ggplot(aes(x = year, y = prediction, group = site))+
+    geom_ribbon(aes(ymin = .lower, ymax = .upper, group = site), alpha = 0.1)+
     geom_line(color = sites.col[i], lwd = 3, show.legend = F)+
     geom_point(color = sites.col[i], size = 4, show.legend = F, pch = 21, fill = "white")+
     labs(x = "", y = "IS")+
     scale_x_discrete(breaks = c(2012, 2016, 2020))+
-    scale_y_continuous(breaks = c(0, 0.01, 0.02, 0.03))+
-    coord_cartesian(ylim = c(0, 0.035))+
+    scale_y_continuous(breaks = c(0, 0.02, 0.04))+
+    coord_cartesian(ylim = c(0, 0.05))+
     theme_bw()+
-    theme(panel.grid = element_blank(), text = element_text(size = 48))+
-    ggsave(filename = here::here("figures/", paste("bysite_", sites.name[i], ".png", sep = "")), device = "png", width = 8.35, height = 8.35*0.75)
+    theme(panel.grid = element_blank(), text = element_text(size = 40))+
+    ggsave(filename = here::here("figures/", paste("bysite_", sites.name[i], ".svg", sep = "")), device = "svg", width = 8.35, height = 8.35)
 }
 
 
+# As a regular time series
+forplot %>%
+  mutate(year = as.numeric(year)) %>%
+  ggplot(aes(x = year, y = prediction))+
+  geom_ribbon(aes(ymin = .lower, ymax = .upper, group = site), alpha = 0.1)+
+  geom_line(aes(color = site), alpha = 0.75, lwd=2)+
+  scale_color_manual(values = sites.col)+
+  coord_cartesian(ylim = c(0, 0.05))+
+  facet_wrap(~site)+
+  theme_bd()
 

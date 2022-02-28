@@ -1,3 +1,4 @@
+source("code/theme.R")
 source("code/10b_scenarios.R")
 
 set.seed(100024)
@@ -50,7 +51,7 @@ sim %>% ggplot(aes(x = site, y = IS))+
 # Attempted based on size frequency distributions
 
 
-sim <- data.frame(site = c("initial", "initial", "final", "final"), 
+sim <- data.frame(site = c("Initial", "Initial", "Final", "Final"), 
                   group = c("A", "B", "A", "B"),
                   lob_density = rep(params$lobdensity_25, 4),
                   urc_density = c(params$urcdensity_25, 
@@ -64,9 +65,9 @@ urcmass <- rgamma(n = sim$urc_density[1]*10000, shape = fitdist1$estimate[1], ra
 hist(urcmass)
 summary(urcmass)
 summary(all_urcmass)
-start_urcmass <- expand.grid(group = c("A", "B"), urc_mass = urcmass) %>% mutate(site = "initial")
+start_urcmass <- expand.grid(group = c("A", "B"), urc_mass = urcmass) %>% mutate(site = "Initial")
 end_urcmass <- data.frame(group = rep(c("A", "B"), each = length(urcmass)), 
-                          site = rep("final", 2*length(urcmass)), 
+                          site = rep("Final", 2*length(urcmass)), 
                           urc_mass = c(urcmass, urcmass))
 
 forjoin_urc <- rbind(start_urcmass, end_urcmass)
@@ -80,9 +81,9 @@ summary(all_lobmass)
 hist(all_lobmass)
 
 
-start_lobmass <- expand.grid(group = c("A", "B"), lob_mass = lobmass) %>% mutate(site = "initial")
+start_lobmass <- expand.grid(group = c("A", "B"), lob_mass = lobmass) %>% mutate(site = "Initial")
 end_lobmass <- data.frame(group = rep(c("A", "B"), each = length(lobmass)), 
-                          site = rep("final", 2*length(lobmass)), 
+                          site = rep("Final", 2*length(lobmass)), 
                           lob_mass = c(lobmass, lobmass*10))
 
 forjoin_lob <- rbind(start_lobmass, end_lobmass)
@@ -115,35 +116,37 @@ output %>% group_by(site, group) %>%
             median = median(prediction))
 
 
-#final - initial / initial
+#Final - Initial / Initial
 
 (0.00316 - 0.00312) / 0.00312
 (0.01416 - 0.00389) / 0.00389
 
-cal_palette("chaparral2", n = 6)
+cal_palette("chaparral3", n = 5)
 
 p3 <- output %>% 
   mutate(group = case_when(group == "A" ~ "10x increase\nin density", 
                            group == "B" ~ "10x increase\nin predator size")) %>%
-  ggplot(aes(x = forcats::fct_rev(site), y = prediction))+
-  tidybayes::stat_slab(aes(fill = group, group = group), alpha = 0.5)+
-  scale_fill_manual(values = c("#D98A63", "#A7C2CD"))+
+  ggplot(aes(x = prediction, y = forcats::fct_rev(site)))+
+  tidybayes::stat_slab(aes(fill = group), alpha = 0.5)+
+  scale_fill_manual(values = c("#BED6B3", "#304818"))+
   tidybayes::stat_pointinterval(aes(group = group), .width = c(0))+
+  scale_y_discrete(labels = c("", ""))+
   stat_summary(fun = "median", aes(linetype = group, group = group), geom = "line")+
   scale_linetype_manual(values = c(4,1))+
-  coord_cartesian(ylim = c(0, 0.02))+
-  labs(y = expression(paste("Interaction strength (ind. m"^-2,"d"^-1,")")), x = "", fill = "", linetype = "")+
-  annotate(geom = "text", x = c(1.5, 1.5), y = c(0.0030, 0.0070), label = c("+1.3%", "+264%"))+
-  theme_classic()+
-  theme(text = element_text(size = 18), legend.position = c(0.2, 0.8))
+  coord_cartesian(xlim = c(0, 0.02))+
+  labs(x = expression(paste("Interaction strength (ind. m"^-2,"d"^-1,")")), y = "Simulated change in predator biomass", fill = "", linetype = "")+
+  annotate(geom = "text", y = c(1.5, 1.5), x = c(0.0025, 0.0070), label = c("+1.3%", "+264%"))+
+  theme_bd()+
+  theme(legend.position = c(0.8, 0.5))
 
-toprow = plot_grid(p2, p3, nrow = 1)
-bottomrow = plot_grid(NULL, histo, NULL, nrow = 1, rel_widths = c(0.15, 0.7, 0.15))
+fig5 <- plot_grid(p2, p3, histo, nrow = 3, align = "v", axis = "l")
+
+ggsave("figures/fig5_histos.svg", fig5, device = "svg", width = 6, height = 10)
 
 
 
-fig5 <- cowplot::plot_grid(toprow, bottomrow, nrow = 2)
-ggsave(filename = "figures/figure5_histos.png", plot = fig5, width = 8.5*1.5, height = 8.5*0.65*1.5)
+
+
 
 
 

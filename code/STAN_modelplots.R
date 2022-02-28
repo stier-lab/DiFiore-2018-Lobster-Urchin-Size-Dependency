@@ -1,4 +1,5 @@
 source("code/1_setup.R")
+source("code/theme.R")
 
 #---------------------------------------------------------------------
 ## Get data
@@ -7,6 +8,12 @@ source("code/1_setup.R")
 # Posteriors
 df.ind <- read.csv(here::here("data/cleaned/posteriors", "allometric_individualSTAN.csv")) %>% as_tibble()
 df.pop <- read.csv(here::here("data/cleaned/posteriors", "allometric_populationSTAN.csv")) %>% as_tibble() %>% pivot_wider(names_from = .variable, values_from = .value)
+
+# Summary data 
+
+read.csv(here::here("data/cleaned/posteriors", "allometric_populationSTAN.csv")) %>% as_tibble() %>%
+  group_by(.variable) %>%
+  median_qi(.value)
 
 # Experimental data
 df <- read.table(here("data/cleaned","loburc_cleaned.csv"), header = T, sep = ",") %>%
@@ -34,43 +41,43 @@ allometric_CI <- function(mc, mr, prob = 0.95, ...){
   p_mu <- apply(p_sim_output, 2 ,median, na.rm = T)
   p_ci <- t(apply( p_sim_output , 2 , PI, prob = prob))
   
-  return(data.frame(N = N.vec, mu = p_mu, mu.lower = p_ci[,1], mu.upper = p_ci[,2]))
+  return(data.frame(N = N.vec, mu = p_mu, mu.lower = p_ci[,1], mu.upper = p_ci[,2], mc = temp.mc, mr = temp.mr))
 }
 
 predict <- expand.grid(mc = c(median(df$mc, na.rm = T), quantile(df$mc, probs = c(0.1, 0.9), na.rm = T)), mr = unique(df$mr))
 
 forplot <- predict %>%
   purrr::pmap(allometric_CI) %>%
-  set_names(paste(predict$mc, predict$mr, sep = "-")) %>%
+  set_names(1:9) %>%
   do.call(rbind, .) %>%
-  mutate(mc = rep(predict$mc, each = 100),
-         mr = rep(predict$mr, each = 100)) %>%
   rename(initial = N)
 
-forplot$treatment <- rep(c("urc_medium", "urc_large", "urc_small"), each = 300)
+forplot$treatment.cleaned <- forcats::fct_rev(as.factor(rep(c("Medium", "Large", "Small"), each = 300)))
 forplot <- arrange(forplot, mc)
 forplot$lob.sizeclass <- rep(rev(c("Large", "Medium", "Small")), each = 300)
 
+df <- df %>% 
+  mutate(treatment.cleaned = case_when(treatment == "urc_small" ~ "Small", 
+                                       treatment == "urc_medium" ~ "Medium", 
+                                       treatment == "urc_large" ~ "Large"))
 
 
 plot4 <- ggplot(df, aes(x = initial, y = killed))+
-  geom_jitter(aes(size = treatment), pch = 21, show.legend = F, stroke = 1)+
-  scale_size_manual(values = c(4,2.5,1.5))+
-  #scale_fill_manual(values = c('#d53e4f','#fc8d59','#fee08b'))+
-  geom_ribbon(data = forplot, aes(ymin = mu.lower, ymax = mu.upper, y = mu, group = lob.sizeclass), color = "gray", alpha = 0.25)+
-  geom_line(data = forplot, aes(x = initial, y = mu, color = lob.sizeclass), size = 1.5)+
+  geom_jitter(show.legend = F, height = 0, alpha = 0.5, size = 2.5)+
+  geom_ribbon(data = forplot, aes(ymin = mu.lower, ymax = mu.upper, y = mu, group = lob.sizeclass), alpha = 0.2)+
+  geom_line(data = forplot, aes(x = initial, y = mu, color = lob.sizeclass, linetype = lob.sizeclass), size = 1.5)+
   scale_color_manual(values = rev(c('#d53e4f','#fc8d59','#fee08b')))+
-  facet_wrap(~treatment, labeller = as_labeller(c(urc_large = "Large", 
-                                                  urc_medium = "Medium", 
-                                                  urc_small = "Small")))+
-  geom_hline(yintercept = 0, lty = 4, color = "gray25")+
-  labs(x = "Number of prey offered", y = "Number of prey consumed", color = "Predator size", title = "Prey size class")+
-  theme_classic()+
-  theme(text = element_text(size = 14, face = "plain"), plot.title = element_text(face = "plain"))
+  facet_wrap(~forcats::fct_rev(treatment.cleaned))+
+  labs(x = "Number of urchins offered", y = "Number of urchins consumed", color = "Lobster size", title = "Urchin size class", linetype = "Lobster size")+
+  theme_bd()+
+  theme(legend.position = c(0.8, 0.8))
 
-ggsave(here::here("figures/", "allometric_fr.png"), plot4, width = 10, height = 4)
+ggsave(here::here("figures/", "allometric_fr.png"), plot4, width = 10, height = 6)
+ggsave(here::here("figures/", "allometric_fr.svg"), plot4, width = 10, height = 6)
 
-
+ggplot(forplot, aes(x = initial, y = mu))+
+  geom_line(aes(color = lob.sizeclass))+
+  facet_wrap(~treatment)
 
 #-------------------------------------------------------------------------
 ## Posterior vs. prior plots

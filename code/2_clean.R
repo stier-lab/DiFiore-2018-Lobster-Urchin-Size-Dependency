@@ -45,7 +45,7 @@ df$udiam <- ifelse(df$treatment == "urc_medium", 40,
 
 # Get weights (g) for urchins
 
-df$mr <- 0.000592598*df$udiam^2.872636198*1.01
+df$mr <- 0.000592598*(df$udiam^2.872636198)*1.01
 
 # get lobster weights
 

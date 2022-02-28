@@ -107,8 +107,29 @@ full <- r.s %>%
         
         summary(full$prediction)
         rethinking::PI(full$prediction, 0.95)
-
-
+        
+        # CV spatial
+        full %>%
+          group_by(year) %>%
+          summarize(cv_Xsite = sd(prediction)/mean(prediction)) %>%
+          summarize(mean_cvXsite = mean(cv_Xsite), 
+                    sd_cvXsite = sd(cv_Xsite))
+        
+        # CV temporal
+        full %>%
+          group_by(site) %>%
+          summarize(cv_Xyear = sd(prediction)/mean(prediction)) %>%
+          summarize(mean_cvXyear = mean(cv_Xyear), 
+                    sd_cvXyear = sd(cv_Xyear))
+        
+        # CV within site/years
+        full %>%
+          group_by(year, site) %>%
+          summarize(cv_Xboth = sd(prediction)/mean(prediction)) %>%
+          ungroup() %>%
+          summarize(mean_cvXboth = mean(cv_Xboth), 
+                    sd_cvXboth = sd(cv_Xboth))
+        
 
 # Rall
 rall <- r.s %>%
@@ -209,14 +230,14 @@ df2 %>% filter(estimate != "full_meandensity" ) %>% ggplot()+
   geom_histogram(aes(x = prediction, ..ncount.., fill = estimate), position = "dodge")+
   labs(x = expression(paste("Interaction strength (ind. m"^-2,"d"^-1,")")), y = "Count")+
   scale_x_log10(labels = plain)+
-  theme_classic()
+  theme_bd()
 
 ggplot(full)+
   geom_histogram(aes(x = prediction, ..ncount..), alpha = 0.1, color = "gray50", bins = 100)+
   geom_histogram(data = full_meanbodysize, aes(x = prediction, ..ncount..), fill = "#F19B34", bins = 100)+
   labs(x = expression(paste("Interaction strength (ind. m"^-2,"d"^-1,")")), y = "Count")+
   scale_x_log10(labels = plain)+
-  theme_classic()+
+  theme_bd()+
   theme(legend.position = c(0.25, 0.75), text = element_text(size = 18))
 
 
@@ -228,8 +249,8 @@ p2 <- ggplot(full)+
   scale_x_log10(labels = plain)+
   coord_cartesian(ylim = c(0, 1))+
   scale_y_continuous(breaks = c(0, 0.25, 0.5, 0.75, 1))+
-  theme_classic()+
-  theme(text = element_text(size = 18), legend.position = c(0.2, 0.8), legend.text = element_text(size = 14))
+  theme_bd()+
+  theme(legend.position = c(0.2, 0.8))
 
 
 #----------------------
@@ -260,25 +281,24 @@ sum2 %>% group_by(estimate) %>%
 
 library(calecopal)
 #chaparal1
-cal_palette("chaparral1")
+cols <- cal_palette("chaparral3", n = 4)
 calecopal::chaparal1
 
 histo <- ggplot(full)+
   geom_histogram(aes(x = prediction, ..ncount..), alpha = 0.1, color = "black")+
-  geom_vline(data = sum2, aes(xintercept = prediction, color = estimate), show.legend = F, lwd = 1.5, linetype = 2, color = cal_palette("chaparral1", n = 4))+
+  geom_vline(data = sum2, aes(xintercept = prediction, color = estimate, linetype = estimate), show.legend = F, lwd = 2, linetype = c(1,2,3,4), color = c(cols[4], cols[2], cols[1], cols[3]))+
   scale_x_log10(labels = plain)+
   annotate('text', x = c(0.0375, 0.00025, 0.00001, 0.001),
            y = c(1.05, 0.6, 0.25, 1), label = c(
     "bar(italic(f(N,P,m[c],m[r])))",
     "bold(Marine)", 
     "bold(Cross~taxa)", 
-    "bold(Mobile)"), parse = T, color = cal_palette("chaparral1", n = 4))+
-  annotate('text', x = c(0.00025, 0.001), y = c(0.6-0.05, 1-0.05), label = c("bold(invertebrates)", "bold(crustaceans)"), color = cal_palette("chaparral1", n = 4)[c(2,4)], parse = T)+
+    "bold(Mobile)"), parse = T, color = c(cols[4], cols[2], cols[1], cols[3]))+
+  annotate('text', x = c(0.00025, 0.001), y = c(0.6-0.05, 1-0.05), label = c("bold(invertebrates)", "bold(crustaceans)"), color = c(cols[2], cols[3]), parse = T)+
   labs(x = expression(paste("Interaction strength (ind. m"^-2,"d"^-1,")")), y = "Scaled count")+
   coord_cartesian(ylim = c(0, 1.1))+
   scale_y_continuous(breaks = c(0, 0.25, 0.5, 0.75, 1))+
-  theme_classic()+
-  theme(text = element_text(size = 18))
+  theme_bd()
 
 
 timeseries <- full %>% 
@@ -289,7 +309,7 @@ timeseries <- full %>%
   geom_point(aes(color = site))+
   scale_color_manual(values = c('#AF8DC3','#C3AF8D', '#c3958d', '#8DC3AF', '#c38db5'))+
   labs(x = "", y = expression(paste("Interaction strength (ind. m"^-2,"h"^-1,")")), color = "Site")+
-  theme_classic()+
+  theme_bd()+
   theme(legend.position = c(0.2, 0.75), text = element_text(size = 18), axis.text.y = element_text(size = 14))
 
 p6b <- plot_grid(timeseries, histo, nrow = 1, align = "h", rel_widths = c(1,1.5))
@@ -322,7 +342,7 @@ s1 <- full %>%
   scale_x_log10()+
   facet_wrap(~site, scales = "free_y")+
   labs(y = "", x = expression(paste("Interaction strength (ind. m"^-2,"h"^-1,")")), color = "")+
-  theme_classic()+
+  theme_bd()+
   theme(legend.position = c(0.8,0.2))
 
 ggsave("figures/sup_fig-qualitative.png", plot = s1)
@@ -386,7 +406,7 @@ p1 <- ggplot(df.sum, aes(y = median_prediction/lob_density, x = median_lob.mass/
   labs(x = "Median predator:prey body mass ratio", y = expression(paste("Interaction strength (ind. m"^-2,"h"^-1,"P"^-1,")")), size = expression(paste("Urchin density (ind. m"^-2,")")))+
   annotate(x = 30, y = 0.25, geom="text", 
            label = eq(round(p1.r$estimate, 2)), parse = T, size = 5)+
-  theme_classic()+
+  theme_bd()+
   theme(legend.position = c(0.2,0.8), text = element_text(size = 14))
 
 p2 <- ggplot(df.sum, aes(y = median_prediction/lob_density, x = urc_density))+
@@ -394,7 +414,7 @@ p2 <- ggplot(df.sum, aes(y = median_prediction/lob_density, x = urc_density))+
   labs(size = "Median predator:prey\nbody mass ratio", y = expression(paste("Interaction strength (ind. m"^-2,"h"^-1,"P"^-1,")")), x = expression(paste("Urchin density (ind. m"^-2,")")))+
   annotate(x = 30, y = 0.25, geom="text", 
            label = eq(round(p2.r$estimate, 2)), parse = T, size = 5)+
-  theme_classic()+
+  theme_bd()+
   theme(legend.position = c(0.2,0.8), text = element_text(size = 14))
 
 

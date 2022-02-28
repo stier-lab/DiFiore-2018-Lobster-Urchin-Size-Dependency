@@ -156,6 +156,7 @@ temp <- mf %>%
 
 mod1 <- lm(m.kill ~ mc * treatment, data = temp)
 summary(mod1)
+hist(residuals(mod1), breaks = 30)
 
 pred <- ggeffects::ggpredict(mod1, terms = ~mc*treatment) %>%
   as.data.frame() %>%
@@ -190,9 +191,12 @@ p2 <- mf %>%
 cowplot::plot_grid(p1+theme(legend.position = "none"), p2, rel_widths = c(0.5, 1))
 
 
+# This analysis doesn't make sense in the context of our experiment because we did not control biomass, for example we would have needed to have a much higher density of small urchins in order to have the same total biomass as a high density of large urchins. Large urchin biomass in the high density trials ~ 1800 g, while the small urchin biomass in the high density trials was only ~80 g. Obviously, then we can't compare without controlling for the amount of biomass offered. In a different experiment (if we had fixed biomass and allowed density to vary), I would expect to see an effect of prey size on the biomass consumed. For example small predators might consume more small prey while large predators may consume more prey per unit mass of predator. In other words the slope and intercept of the relationship between predator size and biomass consumed would depende on prey size class. However, in our case we don't have a good estimate for how much biomass a large predator 
+
+
 mf %>%
   group_by(id, size, treatment) %>%
-  filter(m.int == max(m.int)) %>%
+  # filter(m.int == max(m.int)) %>%
   mutate(m.kill_div_mc = m.kill/mc) %>%
   ggplot(aes(x = mc, y = m.kill_div_mc, color = treatment))+
   geom_point(aes(shape = treatment, fill = treatment), size = 2, alpha = 0.5) +
