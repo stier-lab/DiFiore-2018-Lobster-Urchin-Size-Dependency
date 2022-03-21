@@ -1,3 +1,5 @@
+library(here)
+library(tidyverse)
 
 #-------------------------------------------------------------------------
 ## Post-hoc relationship between FR and body size ratios
@@ -5,12 +7,12 @@
 
 # read in data 
 
-df <- read.csv(here("data", "paramest-all.csv"))
+df <- read.csv(here("data", "paramest-all.csv")) %>% filter(package == "JAGS")
 
 # get lobster metadata
 
 md <- read.csv(here("data", "lob-metadata.csv"))
-md$id.n <- as.numeric(md$id)
+md$id.n <- as.numeric(as.factor(md$id))
 
 md <- md %>% arrange(id.n) %>% 
   mutate(name = id, 

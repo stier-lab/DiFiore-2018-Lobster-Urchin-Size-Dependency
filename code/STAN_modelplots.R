@@ -229,6 +229,11 @@ background_points <- read.csv(here::here("data/cleaned/posteriors", "allometric_
   tidybayes::sample_draws(n = 100)
 
 
+
+urchin_cols <- rev(c("#65aecd","#436fe2","#7b47c1"))
+
+plot(1:3, col = urchin_cols, pch = 19, cex = 5)
+
 post_hoc_CI <- function(mr, data, prob = 0.95){
   temp.mr <- as.numeric(mr)
   mu.link <- function(mc, mr){
@@ -279,36 +284,35 @@ forplot <- bind_rows(forplot.a, forplot.h) %>%
 
 p1 <- background_points %>% 
   ggplot(aes(x = mc, y = a))+
-  geom_point(aes(color = treatment), shape = 1, alpha = 0.5, show.legend = T)+
-  geom_line(data = forplot[forplot$parameter == "a",], aes( x= mc, y = mu, color = treatment), show.legend = T)+
-  scale_color_manual(values = c('#AF8DC3','#C3AF8D','#8DC3AF'))+
+  geom_point(aes(color = treatment), shape = 1, alpha = 0.1, show.legend = T)+
   geom_ribbon(data = forplot[forplot$parameter == "a", ], aes(ymin = mu.lower, ymax = mu.upper, y = mu, x = mc, group = treatment), fill = "gray", alpha = 0.25)+
+  geom_line(data = forplot[forplot$parameter == "a",], aes( x= mc, y = mu, color = treatment, linetype = treatment), show.legend = T, lwd = 2)+
+  scale_color_manual(values = urchin_cols)+
   scale_y_log10()+
   scale_x_log10()+
-  labs(x = "Predator body mass (g)", y = expression(paste("Attack rate (",m^-2,h^-1,")")), color = "")+
+  labs(x = "Predator body mass (g)", y = expression(paste("Attack rate (",m^-2,h^-1,")")), color = "", linetype = "")+
   cowplot::theme_cowplot()+
   theme(legend.position = "none")
 
 p2 <- background_points %>% 
   ggplot(aes(x = mc, y = h))+
-  geom_point(aes(color = treatment), shape = 1, alpha = 0.5, show.legend = T)+
-  geom_line(data = forplot[forplot$parameter == "h",], aes( x= mc, y = mu, color = treatment), show.legend = T)+
-  scale_color_manual(values = c('#AF8DC3','#C3AF8D','#8DC3AF'))+
+  geom_point(aes(color = treatment), shape = 1, alpha = 0.1, show.legend = T)+
   geom_ribbon(data = forplot[forplot$parameter == "h", ], aes(ymin = mu.lower, ymax = mu.upper, y = mu, x = mc, group = treatment), fill = "gray", alpha = 0.25)+
+  geom_line(data = forplot[forplot$parameter == "h",], aes( x= mc, y = mu, color = treatment, linetype = treatment), show.legend = T, lwd = 2)+
+  scale_color_manual(values = urchin_cols)+
   scale_y_log10()+
   scale_x_log10()+
-  labs(x = "Predator body mass (g)", y = "Handling time (h)", color = "")+
+  labs(x = "Predator body mass (g)", y = "Handling time (h)", color = "", linetype = "")+
   cowplot::theme_cowplot()+
   theme(legend.position = c(0.6, 0.8))
 
-fig_s2 <- cowplot::plot_grid(p1, p2)
+fig_s2 <- cowplot::plot_grid(p1, p2, labels = "AUTO")
 
 ggsave(here::here("figures/", "fig4_posthocandh.png"), fig_s2, width = 10, height = 5)
 
+fig_s2 <- cowplot::plot_grid(p1, p2)
 
-
-
-
+ggsave("figures/fig4_posthocandh.svg", fig_s2, device = "svg", width = 10, height = 5)
 
 
 

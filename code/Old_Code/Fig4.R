@@ -7,7 +7,7 @@ source(here("code", "1_setup.R"))
 
 df.ind <- read.csv(here("data", "JAGSparam-estimates.csv"))
 md <- read.csv(here("data", "lob-metadata.csv"))
-md$id.n <- as.numeric(md$id)
+md$id.n <- as.numeric(as.factor(md$id))
 
 md <- md %>% arrange(id.n) %>% 
   mutate(name = id, 
@@ -31,7 +31,16 @@ df.ind$name.ord <- factor(df.ind$name, levels = df.ind$name[order(df.ind$mc)])
     summary(mte2.ratio)
     AIC(mte1.a, mte2.ratio)
     
+    mte3.a <- lm(log(median.a) ~ log(mc) + I(log(mc)^2) + log(mr), data = df.ind)
+    summary(mte3.a)
+    
     car::crPlots(mte1.a)
+    car::crPlots(mte2.ratio)
+    car::crPlots(mte3.a)
+    
+    AIC(mte1.a, mte2.ratio, mte3.a)
+    
+    plot(residuals(mte1.a) ~ log(df.ind$mc[is.na(df.ind$mc) == F]))
 
     # Tests of hump shaped relationships based on Kalinkat, McCoy, or Barrios-Oneill 
     
@@ -93,7 +102,7 @@ df.ind$name.ord <- factor(df.ind$name, levels = df.ind$name[order(df.ind$mc)])
     mte4.h <- lm(log(median.h) ~ log(mr), df.ind)
     summary(mte2.h)
     
-    AICtab(mte1.h, mte2.h, mte3.h, mte4.h)
+    AIC(mte1.h, mte2.h, mte3.h, mte4.h)
     
     
     mte1.h.test <- lm(log(median.h) ~ scale(log(mc)) + scale(log(mr)), data = df.ind)
@@ -149,9 +158,9 @@ df.ind$name.ord <- factor(df.ind$name, levels = df.ind$name[order(df.ind$mc)])
     p1 <- ggplot(df.ind, aes(x = mc, y = median.a))+
       geom_point(aes(fill = treatment), shape = 21, size = 2, show.legend = F)+
       geom_line(data = newdat, aes(x = mc, y = 10^(predicted.a), color = treatment, linetype = treatment))+
-      scale_fill_manual(values = bigsur)+
+      # scale_fill_manual(values = bigsur)+
       geom_line(data= newdat, aes(x = mc, y = rall.a, linetype = treatment), color = "black")+
-      scale_color_manual(values = bigsur)+
+      #scale_color_manual(values = bigsur)+
       scale_y_log10()+
       labs(y = "Attack rate", x = "Consumer mass")+
       facet_wrap(~treatment)+
@@ -168,10 +177,10 @@ df.ind$name.ord <- factor(df.ind$name, levels = df.ind$name[order(df.ind$mc)])
     
     p2 <- ggplot(df.ind, aes(x = mc, y = median.h))+
       geom_point(aes(fill = treatment), shape = 21, size = 2)+
-      scale_fill_manual(values = bigsur)+
+      #scale_fill_manual(values = bigsur)+
       scale_y_log10(breaks = c(1,10,100,1000), labels =  c(1,10,100,1000))+
       geom_line(data = newdat, aes(x = mc, y = 10^(median.h), color = treatment, linetype = treatment))+
-      scale_color_manual(values = bigsur)+
+      #scale_color_manual(values = bigsur)+
       geom_line(data = newdat, aes(x = mc, y =rall, linetype = treatment), color = "black")+
       labs(y = "Handling time", x = "Consumer mass")+
       facet_wrap(~treatment)+
@@ -198,8 +207,8 @@ df.ind$name.ord <- factor(df.ind$name, levels = df.ind$name[order(df.ind$mc)])
     #Generalized Ricker function
     p1.b <- ggplot(df.ind, aes(x = mc/mr, y = median.a))+
       geom_point(aes(fill = treatment), shape = 21, size = 2, show.legend = F)+
-      scale_fill_manual(values = bigsur)+
-      geom_line(data = newdat2, aes(x = mc/mr, y = 10^predict.bo), color = "gray50", linetype = "dashed")+
+      #scale_fill_manual(values = bigsur)+
+      geom_line(data = newdat2, aes(x = mc/mr, y = 10^predict.kal), color = "gray50", linetype = "dashed")+
       scale_y_log10(breaks = c(0.01, 0.02, 0.03), labels = c(0.01, 0.02, 0.03))+
       coord_cartesian(ylim = c(0.0075, 0.04))+
       scale_x_log10()+

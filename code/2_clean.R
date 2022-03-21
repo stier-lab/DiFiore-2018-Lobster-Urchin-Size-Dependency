@@ -2,7 +2,7 @@
 ## Clean raw csv file to prepare for fitting functional responses
 ##############################################################################
 library(here)
-source(here("code","setup.R"))
+source(here("code","1_setup.R"))
 source(here("code","Base_functions/functions.R"))
 
 df <- read.table(here("data/raw","loburc_raw.csv"), header = T, sep = ",")
@@ -76,6 +76,8 @@ md <- distinct(df, id, size, treatment, udiam, mr, mc)
 
 write.csv(md, here("data", "lob-metadata.csv"), row.names = F)
 
+
+summary(md$mc)
 
 
 
