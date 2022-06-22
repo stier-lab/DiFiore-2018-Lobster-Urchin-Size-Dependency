@@ -8,10 +8,10 @@ source(here("code", "theme.R"))
 ## Get data
 #####################################
 
-df <- read.table(here("data/cleaned","loburc_cleaned.csv"), header = T, sep = ",") %>% 
+df <- read.csv(here("data/cleaned","loburc_cleaned.csv"), header = T) %>% 
   arrange(treatment, id) %>%
   group_by(id) %>%
-  # filter(initial == max(initial)) %>%
+  filter(initial == max(initial)) %>%
   mutate(m.int = initial*mr, 
          m.kill = killed*mr,
          prop.m.kill = m.kill/m.int) %>%
@@ -20,28 +20,25 @@ df <- read.table(here("data/cleaned","loburc_cleaned.csv"), header = T, sep = ",
   mutate(treatment.clean = recode(treatment, urc_small = "Small\nurchins", urc_medium = "Medium\nurchins", urc_large = "Large\nurchins") )
 
 #-----------------------------------------
-## Summary stats for P2 and P3 of results
+## Summary stats for P2 of results
 #-----------------------------------------
 
-temp <- df %>% 
-  filter(treatment == "urc_small") %>%
-  group_by(id) %>%
-  filter(initial == max(initial)) %>%
-  ungroup() %>%
-  filter(size == max(size) | size == min(size))
-
-# the relative change in proportion killed of small urchins at max density from the smallest lobster to the largest lobster
-(temp$prop.m.kill[temp$id == "Monster"] - temp$prop.m.kill[temp$id == "SCI01"]) / temp$prop.m.kill[temp$id == "SCI01"]
 
 # Across all densities only the largest lobsters regularly consumed the largest urchins, and 0.0X% of large urchins were consumed by lobster less than XXX g.
 
-df %>%
+read.csv(here("data/cleaned","loburc_cleaned.csv"), header = T) %>% 
+  arrange(treatment, id) %>%
+  group_by(id) %>%
+  mutate(m.int = initial*mr, 
+         m.kill = killed*mr,
+         prop.m.kill = m.kill/m.int) %>%
+  filter(id != "N07") %>%
+  ungroup() %>%
+  mutate(treatment.clean = recode(treatment, urc_small = "Small\nurchins", urc_medium = "Medium\nurchins", urc_large = "Large\nurchins") ) %>%
   filter(treatment == "urc_large") %>%
   filter(mc <= median(mc)) %>% 
   summarize(initial = sum(initial), 
             killed = sum(killed))
-
-2/358
 
 
 #---------------------------
@@ -158,10 +155,15 @@ mod1 <- lm(m.kill ~ mc * treatment, data = temp)
 summary(mod1)
 hist(residuals(mod1), breaks = 30)
 
+mod2 <- lm(log(m.kill) ~ log(mc) * treatment, data = temp[temp$m.kill > 0, ])
+summary(mod2)
+hist(residuals(mod1), breaks = 30)
+
 pred <- ggeffects::ggpredict(mod1, terms = ~mc*treatment) %>%
   as.data.frame() %>%
   rename(mc = x, 
          treatment = group)
+
 
 p1 <- mf %>%
   group_by(id, size, treatment) %>%
@@ -175,6 +177,8 @@ p1 <- mf %>%
   labs(x = "Predator body size (g)", y = "Biomass of urchins consumed", color = "Urchin size", fill = "Urchin size", shape = "Urchin size")+
   theme_bd()
 
+ggsave("figures/p1_forAS.png", plot = p1, width = 6, height = 4)
+
 p2 <- mf %>%
   group_by(id, size, treatment) %>%
   filter(m.int == max(m.int)) %>%
@@ -187,6 +191,30 @@ p2 <- mf %>%
   scale_fill_manual(values = c('#AF8DC3','#C3AF8D','#8DC3AF'), labels = c("Large", "Medium", "Small"))+
   labs(x = "Predator body size (g)", y = "Biomass of urchins consumed", color = "Urchin size", fill = "Urchin size", shape = "Urchin size")+
   theme_bd()
+
+ggsave("figures/p2_forAS.png", plot = p2, width = 6, height = 4)
+
+
+pred2 <- ggeffects::ggpredict(mod2, terms = ~mc*treatment, back.transform = F) %>%
+  as.data.frame() %>%
+  rename(mc = x, 
+         treatment = group)
+
+p3 <- mf %>%
+  group_by(id, size, treatment) %>%
+  filter(m.int == max(m.int)) %>%
+  filter(m.kill > 0) %>%
+  ggplot(aes(x = log(mc), y = log(m.kill), color = treatment))+
+  geom_point(aes(shape = treatment, fill = treatment), size = 2) +
+  geom_ribbon(data = pred2, aes(x = log(mc), y = predicted, ymin = conf.low, ymax = conf.high, group = treatment), fill = "black", alpha = 0.1, color = "transparent")+
+  geom_line(data = pred2, aes(x = log(mc), y = predicted, color = treatment), lwd = 1.5)+
+  scale_shape_manual(values = c(21,23,24), labels = c("Large", "Medium", "Small"))+
+  scale_color_manual(values = c('#AF8DC3','#C3AF8D','#8DC3AF'), labels = c("Large", "Medium", "Small"))+
+  scale_fill_manual(values = c('#AF8DC3','#C3AF8D','#8DC3AF'), labels = c("Large", "Medium", "Small"))+
+  labs(x = "Predator body size (g)", y = "Biomass of urchins consumed", color = "Urchin size", fill = "Urchin size", shape = "Urchin size")+
+  theme_bd()
+
+ggsave("figures/p3_forAS.png", plot = p3, width = 6, height = 4)
 
 cowplot::plot_grid(p1+theme(legend.position = "none"), p2, rel_widths = c(0.5, 1))
 

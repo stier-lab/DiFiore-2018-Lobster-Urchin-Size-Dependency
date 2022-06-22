@@ -150,9 +150,12 @@ stanfit %>%
   #tidybayes::sample_draws(n = 10000) %>%
   pivot_longer(cols = c(alphaa:beta2h), names_to = "parameter", values_to = "estimate") %>%
   ggplot(aes(x=.iteration, y=estimate, color=as.factor(.chain))) +
-  geom_line(alpha=0.5) +
-  facet_grid(parameter~.chain, scale="free_y") +
-  geom_smooth(method="loess") + labs(color="chain")
+  geom_line(alpha=0.5, show.legend = F) +
+  facet_wrap(~parameter, scale = "free_y", ncol = 2)+
+  # facet_grid(parameter~.chain, scale="free_y") +
+  # geom_smooth(method="loess", show.legend = F) +
+  labs(color="chain")+
+  theme_classic()
 
 
   
@@ -160,7 +163,7 @@ stanfit %>%
   
   
   
-stanfit_gauss %>%
+stanfit %>%
   tidybayes::recover_types(df) %>%
   tidybayes::spread_draws(h[i], a[i]) %>%
   tidybayes::median_qi()%>%
@@ -172,7 +175,7 @@ stanfit_gauss %>%
   facet_wrap(~id)
 
 
-stanfit_gauss %>%
+stanfit %>%
   tidybayes::recover_types(df) %>%
   tidybayes::spread_draws(h[i], a[i]) %>%
   tidybayes::median_qi()%>%
