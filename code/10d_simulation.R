@@ -142,7 +142,7 @@ p3 <- output %>%
 fig5 <- plot_grid(p2, p3, histo, nrow = 3, align = "v", axis = "l")
 
 ggsave("figures/fig5_histos.svg", fig5, device = "svg", width = 6, height = 10)
-
+  
 
 
 

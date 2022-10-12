@@ -3,6 +3,7 @@
 #----------------------------------------------------------------------------
 source(here::here("code", "1_setup.R"))
 source(here::here("code", "10a_clean-obsdata.R"))
+source(here::here("code", "theme.R"))
 
 
 # Add line for merge conflict resolution.
@@ -21,32 +22,7 @@ source(here::here("code", "10a_clean-obsdata.R"))
       
       names <- as.vector(names$id)
       
-      # This is a function for the allometric functional response:
-      
-      allometricFR <- function(lob_mass, urc_mass, urc_density, lob_density, beta1a., beta2a., beta1h., beta2h., h0., a0., T = 1, ...){
-        
-        loga <- a0. + beta1a.*log(lob_mass) + beta2a.*log(urc_mass)
-        logh <- h0. + beta1h.*log(lob_mass) + beta2h.*log(urc_mass)
-        a <- exp(loga)
-        h <- exp(logh)
-        a*urc_density*lob_density*T / (1 + a*h*urc_density)
-        
-      }
-      
-      # This is for Barrios-Oneil. Predcitions will be in units of # of prey eaten per m2 per day BUT they make predictions based on maximum consumption rate so we need to modify the formula
-      allometricBO <- function(lob_mass, urc_mass, urc_density, lob_density, beta1a., beta2a., beta1h., beta2h., h0., a0., T = 1, ...){
-        
-        loga <- a0. + beta1a.*log(lob_mass) + beta2a.*log(urc_mass)
-        logC <- h0. + beta1h.*log(lob_mass) + beta2h.*log(urc_mass)
-        a <- exp(loga)
-        C <- exp(logC)
-        h <- 1/C
-        a*urc_density*lob_density*T / (1 + a*h*urc_density)
-        
-      }
-      
-      # UNITS !!!!! All predictions of consumption rate should be in units of # of individual prey consumed per m2 per day!!!! 
-      #- here we will make predictions based on the unit scale of the original data and then convert to consistent units afterwards
+
       
       plain <- function(x,...) {
         format(x, ..., scientific = FALSE, trim = TRUE, drop0trailing = T)
@@ -83,8 +59,20 @@ r.s <- s %>% # reproducible random draws from the size frequency distribution
   dplyr::select(-urc.mass, -lob.mass)
 
 #----------------------------------------------------------------------------
-## Simuations
+## Simuations based on experimental data
 #----------------------------------------------------------------------------
+
+# This is a function for the allometric functional response:
+
+allometricFR <- function(lob_mass, urc_mass, urc_density, lob_density, beta1a., beta2a., beta1h., beta2h., h0., a0., T = 1, ...){
+  
+  loga <- a0. + beta1a.*log(lob_mass) + beta2a.*log(urc_mass)
+  logh <- h0. + beta1h.*log(lob_mass) + beta2h.*log(urc_mass)
+  a <- exp(loga) * tsize * 2 # convert units from per arena per 2 days to per m2 per day 
+  h <- exp(logh) / 2 # convert units from 2 day trials to 1 day. 
+  a*urc_density*lob_density*T / (1 + a*h*urc_density)
+  
+}
 
 # Simulate interactions assuming all sources of uncertainty
 full <- r.s %>%
@@ -100,7 +88,7 @@ full <- r.s %>%
   as_tibble() %>%
   gather(id, prediction) %>%
   separate(id, into = c("year", "site"), sep = "[-]") %>%
-  mutate(prediction = prediction/2/tsize, # get into units of # prey consumed per day per unit squared. The original time units are for 48 hours (or 2 days) therefore 1 day is /2
+  mutate(prediction = prediction,
          estimate = "full")
 
         # Summary stats for paper
@@ -129,50 +117,149 @@ full <- r.s %>%
           ungroup() %>%
           summarize(mean_cvXboth = mean(cv_Xboth), 
                     sd_cvXboth = sd(cv_Xboth))
-        
 
+
+#-------------------------------------------------------------------------
+## Estimates from the literature
+#-------------------------------------------------------------------------
+
+#-----------------------------        
 # Rall
+    # Rall et al. 2012 incorporate temp as a covariate. The basic regression equations are: 
+        # log(a) = a0 + beta1*log(Mc) + beta2*log(Mr) + beta3*(T-T0)/k*T*T0
+        # log(h) = h0 + beta1*log(Mc) + beta2*log(Mr) + beta3*(T-T0)/k*T*T0
+    # where T is temp in kelvin, T0 = 293.15, mass are mg, and time is seconds, k is the boltzman's constant
+        
+bz_ev_k = 8.61733326 * 10^-5
+        
+allometricRall <- function(lob_mass, urc_mass, urc_density, lob_density, beta1a., beta2a., beta1h., beta2h., h0., a0., beta3a., beta3h., T = 1, ...){
+  
+  urc_mass_mg = urc_mass*1000
+  lob_mass_mg = lob_mass*1000
+  temp = (289.25 - 293.15)/(bz_ev_k*289.25*293.15)
+  loga <- a0. + beta1a.*log(lob_mass_mg) + beta2a.*log(urc_mass_mg) + beta3a.*temp
+  logh <- h0. + beta1h.*log(lob_mass_mg) + beta2h.*log(urc_mass_mg) + beta3h.*temp
+  a <- exp(loga) 
+  h <- exp(logh) 
+  consumption_mg_m2_s = a*urc_density*lob_density*T / (1 + a*h*urc_density)
+  consumption_g_m2_day = consumption_mg_m2_s * (60*60*24) / 1000 # convert mg per m2 per second to g per m2 per day.
+  consumption_g_m2_day
+  
+}
+
 rall <- r.s %>%
-  purrr::pmap(allometricFR, 
+  purrr::pmap(allometricRall, 
               beta1a. = 0.85, 
               beta2a. = 0.09, 
               beta1h. = -0.76, 
               beta2h. = 0.76, 
               h0. = 10.38, 
-              a0. = -21.23) %>% 
+              a0. = -21.23, 
+              beta3a. = 0.42, 
+              beta3h. = -0.30) %>% 
   purrr::flatten() %>%
   set_names(names) %>%
   as_tibble() %>%
   gather(id, prediction) %>%
   separate(id, into = c("year", "site"), sep = "[-]") %>%
-  mutate(prediction = prediction*60*60*24,
+  mutate(prediction = prediction,
          estimate = "rall")
 
+summary(rall$prediction)        
+hist(rall$prediction)        
+
+#-----------------------------
+        
+        
+        
+        
+#-----------------------------
 # Barrios-Oneil
+    # BO et al. 2019 use a different model structure with a temperature covariate
+    # basic model structure: 
+        # log(a) = a_0 + beta1*I_ACstat + beta2*I_F + beta3*log(Mc) + beta4*log(Mr) + beta5*log(T) + beta6*log(Mr)*log(T)
+        # log(cmax) = C_0 + beta1*I_ACstat + beta2*I_F + beta3*log(Mc) + beta4*log(Mr) + beta5*log(T) + beta6*log(Mc)*log(T)
+    # I assume that I_F = 0 and I_ACstat = 1, such that we have the regression equation for the active predators preying on static prey.
+    # All beta values from Fig. 4 in text and Table S5. Intercepts estimated as the population level intercept + adjustment for active predators foraging on static prey (AC_stat) + the random intercept deviation from the mean for crustaceans. 
+    # Units in the paper at g, days, and m^2. So no need for unit conversions.
+        
+allometricBO <- function(lob_mass, urc_mass, urc_density, lob_density, beta1a., beta2a., beta1h., beta2h., h0., a0., T = 1, temp, beta5a., beta6a., beta5h., beta6h., ...){
+  
+  loga <- a0. + beta1a.*log(lob_mass) + beta2a.*log(urc_mass) + beta5a.*log(temp) + beta6a.*log(urc_mass)*log(temp)
+  logC <- h0. + beta1h.*log(lob_mass) + beta2h.*log(urc_mass) + beta5h.*log(temp) + beta6h.*log(lob_mass)*log(temp)
+  a <- exp(loga)
+  C <- exp(logC)
+  h <- 1/C
+  a*urc_density*lob_density*T / (1 + a*h*urc_density)
+  
+}
+        
 BO <- r.s %>%
   purrr::pmap(allometricBO, 
               beta1a. = 0.58, 
               beta2a. = 0.59, 
               beta1h. = 1.44, 
-              beta2h. = 0.27, 
+              beta2h. = 0.27,
+              temp = 16.1, 
+              beta5a. = 1.84,
+              beta6a. = 0.12,
+              beta5h. = 1.78, 
+              beta6h. = -0.39,
               h0. = -6.07 + 0.55 + 0.48, 
-              a0. = -8.08 + -1.07) %>% 
+              a0. = -8.08 + -1.07 + 0.48) %>% 
   purrr::flatten() %>%
   set_names(names) %>%
   as_tibble() %>%
   gather(id, prediction) %>%
   separate(id, into = c("year", "site"), sep = "[-]") %>%
   mutate(estimate = "BO")
+#-----------------------------------------
 
+
+#-----------------------------------------
 # Uiterwall and Delong
+  # UD 2020 account for arena size, dimensionality, and temp. The model structures are:
+    # log(a) = a0 + beta1*T + beta2*T^2 + beta3*Mc + beta4*Mr + beta5*arena
+    # log(h) = h0 + beta1*T + beta2*T^2 + beta3*Mc + beta4*Mr + beta5*Dim + beta6*arena
+  # Values for all beta values and intercepts are from Table 1 and Table 2 in the main text of the manuscript.
+  # I assume that temperature = the mean temperature over our experiment and arena size = our arena size.
+  # Units in the manuscript are mg, cm^2, and days
+
+allometricUD <- function(lob_mass, urc_mass, urc_density, lob_density, beta1a., beta2a., beta1h., beta2h., h0., a0., beta3a., beta3h., beta4a., beta4h., beta5a., beta5h., beta6h., temp, arena_m2, dim, T = 1, ...){
+  lob_mass_mg = lob_mass*1000 # convert g to mg
+  urc_mass_mg = urc_mass*1000 # convert g to mg
+  arena_cm2 = arena_m2 * 10^4 # convert m2 to cm2
+  urc_density_cm2 = urc_density / 10^4 # convert ind./ m2 to ind./ cm2
+  lob_density_cm2 = lob_density / 10^4 # convert ind./m2 to ind./cm2
+  loga <- a0. + beta1a.*log(lob_mass_mg) + beta2a.*log(urc_mass_mg) + beta3a.*temp + beta4a.*temp^2 + beta5a.*log(arena_cm2)
+  logh <- h0. + beta1h.*log(lob_mass_mg) + beta2h.*log(urc_mass_mg) + beta3h.*temp + beta4h.*temp^2 + beta5h.*log(arena_cm2) + beta6h.*dim 
+  a <- exp(loga) # per cm2 per day
+  h <- exp(logh) # days
+  consumption_mg_cm2_d = a*urc_density_cm2*lob_density_cm2*T / (1 + a*h*urc_density_cm2)
+  consumption_g_cm2_d = consumption_mg_cm2_d / 1000 # convert mg to g
+  consumption_g_m2_d = consumption_g_cm2_d * 10^4 # convert g per cm2 per day to g per m2 per day
+  consumption_g_m2_d
+}
+
+
 UD <- r.s %>%
-  purrr::pmap(allometricFR, 
+  purrr::pmap(allometricUD, 
               beta1a. = 0.05, 
               beta2a. = -0.0005, 
               beta1h. = -0.25, 
               beta2h. = 0.34, 
               h0. = 0.83, 
-              a0. = -8.45) %>% 
+              a0. = -8.45, 
+              beta3a. = 0.1, 
+              beta3h. = -0.24, 
+              beta4a. = -0.003,
+              beta4h. = 0.005,
+              beta5a. = 0.98, 
+              beta5h. = -0.01, 
+              beta6h. = -0.64, 
+              temp = 16.1, 
+              arena_m2 = tsize, 
+              dim = 2) %>% 
   purrr::flatten() %>%
   set_names(names) %>%
   as_tibble() %>%
@@ -180,11 +267,18 @@ UD <- r.s %>%
   separate(id, into = c("year", "site"), sep = "[-]") %>%
   mutate(estimate = "UD")
 
+summary(UD$prediction)
+hist(UD$prediction)
+
+#-------------------------------------------------------------------------
+## Comparison of variation due to body size and density.
+#-------------------------------------------------------------------------
+
 # Here I fix density to the regional averages. Therefore, the variance in IS estimated by this code will represent the variance due to variation in BODY SIZE not density.
 full_meandensity <- r.s %>%
   ungroup() %>%
-  mutate(urc_density = max(urc_density),
-         lob_density = max(lob_density)) %>%
+  mutate(urc_density = mean(urc_density),
+         lob_density = mean(lob_density)) %>%
   # mutate(urc_density = 1, 
   #        lob_density = 1) %>%
   purrr::pmap(allometricFR, 
@@ -232,13 +326,41 @@ df2 %>% filter(estimate != "full_meandensity" ) %>% ggplot()+
   scale_x_log10(labels = plain)+
   theme_bd()
 
+
 ggplot(full)+
-  geom_histogram(aes(x = prediction, ..ncount..), alpha = 0.1, color = "gray50", bins = 100)+
-  geom_histogram(data = full_meanbodysize, aes(x = prediction, ..ncount..), fill = "#F19B34", bins = 100)+
+  geom_histogram(aes(x = prediction, ..ncount..), fill = "white", color = "gray50", bins = 30)+
   labs(x = expression(paste("Interaction strength (ind. m"^-2,"d"^-1,")")), y = "Count")+
   scale_x_log10(labels = plain)+
   theme_bd()+
-  theme(legend.position = c(0.25, 0.75), text = element_text(size = 18))
+  theme(legend.position = c(0.25, 0.75), text = element_text(size = 18, color = "lightgray"), axis.line = element_line(color = "lightgray"), axis.ticks = element_line(color = "lightgray"))+
+  theme(
+    panel.background = element_rect(fill='transparent'),
+    plot.background = element_rect(fill='transparent', color=NA),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.background = element_rect(fill='transparent'),
+    legend.box.background = element_rect(fill='transparent')
+  )
+
+ggsave("figures/esahisto1.png", width = 6, height = 10/3, bg = "transparent")
+
+ggplot(full)+
+  geom_histogram(aes(x = prediction, ..ncount..), fill = "white", color = "gray50", bins = 30)+
+  geom_histogram(data = full_meanbodysize, aes(x = prediction, ..ncount..), fill = "#4472C4", color = "gray50", alpha = 0.5, bins = 30)+
+  labs(x = expression(paste("Interaction strength (ind. m"^-2,"d"^-1,")")), y = "Count")+
+  scale_x_log10(labels = plain)+
+  theme_bd()+
+  theme(legend.position = c(0.25, 0.75), text = element_text(size = 18, color = "lightgray"), axis.line = element_line(color = "lightgray"), axis.ticks = element_line(color = "lightgray"))+
+  theme(
+    panel.background = element_rect(fill='transparent'),
+    plot.background = element_rect(fill='transparent', color=NA),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.background = element_rect(fill='transparent'),
+    legend.box.background = element_rect(fill='transparent')
+  )
+
+ggsave("figures/esahisto2.png", width = 6, height = 10/3, bg = "transparent")
 
 
 p2 <- ggplot(full)+
@@ -258,26 +380,33 @@ p2 <- ggplot(full)+
 #----------------------
 
 
-sum <- data.frame(estimate = c("mean_full", "median_full", "Rall", "UD", "BO", "mean_density", "mean_bodysize"), 
+sum <- data.frame(estimate = c("mean_full", "median_full", "Rall", "UD", "median_BO", "mean_BO", "mean_density", "mean_bodysize"), 
                   prediction = c(mean(full$prediction), 
                                  median(full$prediction),
                                  mean(rall$prediction), 
                                  mean(UD$prediction), 
+                                 median(BO$prediction),
                                  mean(BO$prediction),
                                  mean(full_meandensity$prediction), 
                                  mean(full_meanbodysize$prediction)))
 
-sum2 <- filter(sum, estimate %in% c("mean_full", "Rall", "UD", "BO"))
+sum2 <- filter(sum, estimate %in% c("mean_full", "Rall", "UD", "mean_BO"))
 
 # Summary stats for paper
 
-sum2 %>% group_by(estimate) %>% 
-  summarize(mean = mean(prediction))
-
+# based on means
 # initial - final / initial
-(0.0137 - 0.00328) / 0.00328 
+((1.149810e-02 - 3.283366e-03) / 3.283366e-03)*100
 
-0.0137 / 0.00328
+1.149810e-02 / 3.283366e-03
+
+
+((3.283366e-03 - 1.149810e-02) / 3.283366e-03)*100
+
+# based on medians
+((0.005907806 - 0.001862737) /  0.001862737) *100
+
+0.005907806 / 0.001862737
 
 library(calecopal)
 #chaparal1
@@ -299,25 +428,6 @@ histo <- ggplot(full)+
   coord_cartesian(ylim = c(0, 1.1))+
   scale_y_continuous(breaks = c(0, 0.25, 0.5, 0.75, 1))+
   theme_bd()
-
-
-timeseries <- full %>% 
-  group_by(year, site) %>%
-  mean_qi(prediction) %>% 
-  ggplot(aes(x = as.numeric(year), y = prediction))+
-  geom_line(aes(color = site))+
-  geom_point(aes(color = site))+
-  scale_color_manual(values = c('#AF8DC3','#C3AF8D', '#c3958d', '#8DC3AF', '#c38db5'))+
-  labs(x = "", y = expression(paste("Interaction strength (ind. m"^-2,"h"^-1,")")), color = "Site")+
-  theme_bd()+
-  theme(legend.position = c(0.2, 0.75), text = element_text(size = 18), axis.text.y = element_text(size = 14))
-
-p6b <- plot_grid(timeseries, histo, nrow = 1, align = "h", rel_widths = c(1,1.5))
-ggsave(here::here("figures/", "observational_alt2.png"), p6b, width = 8.21429*1.5, height = 3*1.5)
-
-fig5 <- plot_grid(histo, p2, nrow =1)
-
-fig5
 
 
 #--------------------------------------------------------------
@@ -353,26 +463,13 @@ temp <- full %>%
   group_by(site, year, estimate, id) %>% 
   tidybayes::median_qi(prediction)%>%
   select(site, year, prediction, estimate) %>%
-  pivot_wider(id_cols = c(site, year), names_from = estimate, values_from = prediction) %>%
-  ungroup() %>%
-  group_by(site) %>%
-  purrr::map(~ cor.test(full, BO, method = "spearman"))
+  pivot_wider(id_cols = c(site, year), names_from = estimate, values_from = prediction)
 
 
 cor.test(temp$full, temp$BO, method = "spearman")
 cor.test(temp$full, temp$UD, method = "spearman")
 cor.test(temp$full, temp$rall, method = "spearman")
 
-
-temp2 <- full %>% 
-  mutate(id = paste(site, year, sep = "-")) %>%
-  bind_rows(rbind(BO, rall, UD) %>% mutate(id = paste(site, year, sep = "-")) ) %>% 
-  group_by(estimate) %>% 
-  tidybayes::median_qi(prediction)
-
-temp2$prediction[temp2$estimate == "full"] / temp2$prediction[temp2$estimate == "BO"]
-
-3.003534*temp2$prediction[temp2$estimate == "BO"]
 
 #--------------------------------------------------------------
 ## site to site comparison
@@ -431,6 +528,10 @@ ggsave("figures/sup_fig-sitebysite.png", s2, width = 10*0.75, height = 10)
 #-------------------------------------------------------------
 
 # for SBC talk
+
+
+# June 22, 2022: Idea, generate a time series plot showing AVERAGE/MEDIAN urchin density, lobster density, urchin size, lobster size, interaction strength, and kelp density. 
+
 
 ggplot(full)+
   geom_histogram(aes(x = prediction), alpha = 0.1, color = "black")+

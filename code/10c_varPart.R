@@ -1,4 +1,14 @@
-variance.partition <- function(ndraws = 10000, .urcdensity, .lobdensity, .urcmass, .lobmass){
+library(purrr)
+
+
+names <- s %>% mutate(id = paste(year, site, sep = "-")) %>%
+  ungroup() %>%
+  select(id) %>%
+  distinct(id)
+
+names <- as.vector(names$id)
+  
+variance.partition <- function(ndraws = 10, .urcdensity, .lobdensity, .urcmass, .lobmass){
   
   full <- r.s %>%
     purrr::pmap(allometricFR,
@@ -59,14 +69,14 @@ pred <- expand.grid(urcmass = seq(min(unnest(r.s, cols = c(urc_mass))$mass), max
 
 out <- vector()
 system.time(
-    out[1] <- variance.partition(.urcmass =  pred$urcmass[1], 
+    out[1] <- variance.partition(ndraws = 1000, .urcmass =  pred$urcmass[1], 
                                  .lobmass = pred$lobmass[1])
   )
 
 out <- vector()
 system.time(
   for(i in 1:dim(pred)[1]){
-    out[i] <- variance.partition(.urcmass =  pred$urcmass[i], 
+    out[i] <- variance.partition(ndraws = 1000, .urcmass =  pred$urcmass[i], 
                                 .lobmass = pred$lobmass[i])
   })
 
@@ -75,9 +85,9 @@ out
 summary(out)
 hist(out)
 # Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-# 0.08936 0.13289 0.13328 0.13311 0.13452 0.15305
+#  0.1160  0.1380  0.1612  0.1552  0.1739  0.1798 
 
-# Ok, so depending on which value of predator and prey size the proportion of variance in the full simulation explained by density ranges from ~8-15%. This suggests that variation in body size within and between sites explains ~85-92% of the variance in interaction strength. The conclusion that I draw from this is that failing to account for variation in body size will result in a loss of 85-92% of the actual variation in how strongly species interact. 
+# Ok, so depending on which value of predator and prey size the proportion of variance in the full simulation explained by density ranges from ~11-18%. This suggests that variation in body size within and between sites explains ~82-89% of the variance in interaction strength. The conclusion that I draw from this is that failing to account for variation in body size will result in a loss of ~82-89% of the actual variation in how strongly species interact. 
 
 pred$out <- out
 
