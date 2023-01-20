@@ -70,9 +70,11 @@ allometricFR <- function(lob_mass, urc_mass, urc_density, lob_density, beta1a., 
   logh <- h0. + beta1h.*log(lob_mass) + beta2h.*log(urc_mass)
   a <- exp(loga) * tsize * 2 # convert units from per arena per 2 days to per m2 per day 
   h <- exp(logh) / 2 # convert units from 2 day trials to 1 day. 
-  a*urc_density*lob_density*T / (1 + a*h*urc_density)
-  
+  a*urc_density*lob_density*T / (1 + a*h*urc_density) #***
 }
+
+# *** Double checked and running the code w/ lob_density at each draw results in the same distribution as running it per-capita lobster and then multiplying by the lobster density at each site/year. 
+
 
 # Simulate interactions assuming all sources of uncertainty
 full <- r.s %>%
@@ -206,7 +208,7 @@ BO <- r.s %>%
               beta5h. = 1.78, 
               beta6h. = -0.39,
               h0. = -6.07 + 0.55 + 0.48, 
-              a0. = -8.08 + -1.07 + 0.48) %>% 
+              a0. = -8.08 + -1.07) %>% 
   purrr::flatten() %>%
   set_names(names) %>%
   as_tibble() %>%
@@ -379,18 +381,10 @@ p2 <- ggplot(full)+
 ## Combine and plot
 #----------------------
 
-
-sum <- data.frame(estimate = c("mean_full", "median_full", "Rall", "UD", "median_BO", "mean_BO", "mean_density", "mean_bodysize"), 
-                  prediction = c(mean(full$prediction), 
-                                 median(full$prediction),
-                                 mean(rall$prediction), 
-                                 mean(UD$prediction), 
-                                 median(BO$prediction),
-                                 mean(BO$prediction),
-                                 mean(full_meandensity$prediction), 
-                                 mean(full_meanbodysize$prediction)))
-
-sum2 <- filter(sum, estimate %in% c("mean_full", "Rall", "UD", "mean_BO"))
+sum <- bind_rows(full, UD, rall, BO) %>%
+  group_by(estimate) %>%
+  summarize(means = mean(prediction), 
+            medians = median(prediction))
 
 # Summary stats for paper
 
@@ -404,31 +398,33 @@ sum2 <- filter(sum, estimate %in% c("mean_full", "Rall", "UD", "mean_BO"))
 ((3.283366e-03 - 1.149810e-02) / 3.283366e-03)*100
 
 # based on medians
-((0.005907806 - 0.001862737) /  0.001862737) *100
+((1.118654e-02 - 2.358111e-01) /  2.358111e-01) *100
 
-0.005907806 / 0.001862737
+1.118654e-02 / 2.358111e-01
 
 library(calecopal)
-#chaparal1
+
 cols <- cal_palette("chaparral3", n = 4)
-calecopal::chaparal1
 
 histo <- ggplot(full)+
-  geom_histogram(aes(x = prediction, ..ncount..), alpha = 0.1, color = "black")+
-  geom_vline(data = sum2, aes(xintercept = prediction, color = estimate, linetype = estimate), show.legend = F, lwd = 2, linetype = c(1,2,3,4), color = c(cols[4], cols[2], cols[1], cols[3]))+
+  geom_histogram(aes(x = prediction, ..ncount..), alpha = 0.1, color = "black", bins = 30)+
+  geom_vline(data = sum, aes(xintercept = means, color = estimate, linetype = estimate), show.legend = F, lwd = 2, linetype = c(2,1,3,4), color = c(cols[3], cols[4], cols[2], cols[3]))+
   scale_x_log10(labels = plain)+
-  annotate('text', x = c(0.0375, 0.00025, 0.00001, 0.001),
-           y = c(1.05, 0.6, 0.25, 1), label = c(
-    "bar(italic(f(N,P,m[c],m[r])))",
-    "bold(Marine)", 
-    "bold(Cross~taxa)", 
-    "bold(Mobile)"), parse = T, color = c(cols[4], cols[2], cols[1], cols[3]))+
-  annotate('text', x = c(0.00025, 0.001), y = c(0.6-0.05, 1-0.05), label = c("bold(invertebrates)", "bold(crustaceans)"), color = c(cols[2], cols[3]), parse = T)+
   labs(x = expression(paste("Interaction strength (ind. m"^-2,"d"^-1,")")), y = "Scaled count")+
   coord_cartesian(ylim = c(0, 1.1))+
   scale_y_continuous(breaks = c(0, 0.25, 0.5, 0.75, 1))+
   theme_bd()
 
+coef <- bind_rows(full, UD, rall, BO) %>%
+  group_by(estimate) %>%
+  tidybayes::mean_qi(prediction) %>%
+  ggplot(aes(y = estimate, x = prediction))+
+  tidybayes::geom_pointinterval(aes(color = estimate, xmin = .lower, xmax = .upper), show.legend = F )+
+  scale_color_manual(values = c(cols[3], cols[4], cols[1], cols[2]))+
+  scale_x_log10(labels = plain)+
+  theme_bd()
+
+ggsave("figures/coefs_forfig5.svg", coef, device = "svg", width = 6, height = 2)
 
 #--------------------------------------------------------------
 ## Rank order figure
@@ -441,17 +437,17 @@ s1 <- full %>%
   bind_rows(rbind(BO, rall, UD) %>% mutate(id = paste(site, year, sep = "-")) ) %>% 
   group_by(estimate, id) %>% 
   tidybayes::median_qi(prediction) %>%
-  mutate(id = forcats::fct_reorder(id, filter(., estimate == "full") %>% pull(prediction))) %>%
+  # mutate(id = forcats::fct_reorder(id, filter(., estimate == "full") %>% pull(prediction))) %>%
   separate(id, into = c("site", "year"), sep = "-", remove = F) %>%
   mutate(character = case_when(estimate == "full" ~ "Experimental prediction", 
                                estimate == "BO" ~ "Marine crustaceans", 
                                estimate == "UD" ~ "Cross taxa", 
                                estimate == "rall" ~ "Marine invertebrates")) %>%
   ggplot(aes(x = prediction, y = id))+
-  tidybayes::geom_pointinterval(aes(x = prediction, xmin = .lower, xmax =.upper, color = character), position = "dodge")+
+  tidybayes::geom_pointinterval(aes(x = prediction, xmin = .lower, xmax =.upper, color = character), position = position_dodge(width = 0.2))+
   scale_x_log10()+
   facet_wrap(~site, scales = "free_y")+
-  labs(y = "", x = expression(paste("Interaction strength (ind. m"^-2,"h"^-1,")")), color = "")+
+  labs(y = "", x = expression(paste("Interaction strength (ind. m"^-2,"d"^-1,")")), color = "")+
   theme_bd()+
   theme(legend.position = c(0.8,0.2))
 

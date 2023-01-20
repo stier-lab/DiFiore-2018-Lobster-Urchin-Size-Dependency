@@ -142,7 +142,7 @@ write.csv(df.pop, here::here("data/cleaned/posteriors", "allometric_populationST
 #----------------------------------------------------
 
 
-shinystan::launch_shinystan(stanfit_gauss)
+shinystan::launch_shinystan(stanfit)
 
 stanfit %>%
   tidybayes::recover_types(df) %>%
@@ -157,6 +157,7 @@ stanfit %>%
   labs(color="chain")+
   theme_classic()
 
+ggsave("figures/sup_posteriorchains.png", width = 7, height = 8)
 
   
   

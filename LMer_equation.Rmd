@@ -1,0 +1,22 @@
+---
+title: "Barrios Equations"
+output: html_document
+date: "2023-01-19"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(equatiomatic)
+library(lme4)
+```
+
+```{r}
+# Fit a simple model
+mod1 <- lme4::lmer(Reaction ~ Days + (1 | Subject), sleepstudy)
+
+# Give the results to extract_eq
+extract_eq(mod1)
+```
